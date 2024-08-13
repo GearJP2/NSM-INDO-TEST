@@ -120,3 +120,4 @@ Werkzeug==3.0.1
 wheel==0.43.0
 wrapt==1.16.0
 librosa==0.8.1
+setuptools
