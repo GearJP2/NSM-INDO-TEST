@@ -120,5 +120,4 @@ websockets==12.0
 Werkzeug==3.0.1
 wheel==0.43.0
 wrapt==1.16.0
-web: python app.py
 librosa==0.8.1
