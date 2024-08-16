@@ -69,7 +69,8 @@ def preprocess_audio(file, file_format):
     heart_sound = extract_heart_sound(audio)
 
     # Generate the spectrogram
-    spectrogram = librosa.feature.melspectrogram(y=audio, sr=audio.frame_rate)
+    sample_rate = audio.frame_rate
+    spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
     spectrogram = librosa.power_to_db(spectrogram)
 
     # Define a fixed length for the spectrogram
