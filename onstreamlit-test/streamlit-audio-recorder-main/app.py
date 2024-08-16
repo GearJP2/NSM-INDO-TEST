@@ -111,6 +111,6 @@ if audio_data:
             y_pred = model.predict(spectrogram)
             y_pred_class = np.argmax(y_pred, axis=1)
             result = encoder.inverse_transform(y_pred_class)
-            st.write(f"Prediction: {result[0]}")
+            st.write(f"Prediction: {prediction['result']}")
 else:
     st.write("Record an audio clip to start.")
