@@ -62,6 +62,7 @@ def preprocess_audio(file, file_format):
     else:  # wav
         audio = AudioSegment.from_wav(file_bytes)
 
+    sample_rate = audio.frame_rate  # Get the sample rate before conversion
     audio = np.array(audio.get_array_of_samples(), dtype=np.float32)
     audio = audio / np.max(np.abs(audio))  # Normalize the audio
 
@@ -69,7 +70,6 @@ def preprocess_audio(file, file_format):
     heart_sound = extract_heart_sound(audio)
 
     # Generate the spectrogram
-    sample_rate = audio.frame_rate
     spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
     spectrogram = librosa.power_to_db(spectrogram)
 
