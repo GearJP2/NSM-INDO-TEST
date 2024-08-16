@@ -16,7 +16,7 @@ from pydub import AudioSegment
 # Function to create Google Drive client
 def create_drive_client():
     scope = ['https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name('onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json', scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name('path/to/heart-d9410-9a288317e3c7.json', scope)
     gauth = GoogleAuth()
     gauth.credentials = creds
     drive = GoogleDrive(gauth)
@@ -63,7 +63,13 @@ def preprocess_audio(file, file_format):
         audio = np.array(audio_segment.get_array_of_samples(), dtype=np.float32)
         sample_rate = 22050
     else:
-        audio, sample_rate = librosa.load(file, sr=None)
+        # Convert file-like object to bytes
+        file_bytes = io.BytesIO(file.read())
+        audio_segment = AudioSegment.from_wav(file_bytes)
+        audio_segment = audio_segment.set_channels(1)
+        audio_segment = audio_segment.set_frame_rate(22050)
+        audio = np.array(audio_segment.get_array_of_samples(), dtype=np.float32)
+        sample_rate = 22050
     
     heart_sound = extract_heart_sound(audio)
     spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
