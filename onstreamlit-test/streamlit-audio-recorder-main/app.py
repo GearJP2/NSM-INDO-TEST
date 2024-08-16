@@ -11,11 +11,12 @@ from pydrive.drive import GoogleDrive
 from oauth2client.service_account import ServiceAccountCredentials
 import time
 import io
+from pydub import AudioSegment
 
 # Function to create Google Drive client
 def create_drive_client():
     scope = ['https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name('onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json', scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name('path/to/heart-d9410-9a288317e3c7.json', scope)
     gauth = GoogleAuth()
     gauth.credentials = creds
     drive = GoogleDrive(gauth)
@@ -54,8 +55,16 @@ def extract_heart_sound(audio):
     return heart_sound
 
 # Function to preprocess the audio file
-def preprocess_audio(file):
-    audio, sample_rate = librosa.load(file, sr=None)
+def preprocess_audio(file, file_format):
+    if file_format == 'mp3' or file_format == 'm4a':
+        audio_segment = AudioSegment.from_file(file, format=file_format)
+        audio_segment = audio_segment.set_channels(1)
+        audio_segment = audio_segment.set_frame_rate(22050)
+        audio = np.array(audio_segment.get_array_of_samples(), dtype=np.float32)
+        sample_rate = 22050
+    else:
+        audio, sample_rate = librosa.load(file, sr=None)
+    
     heart_sound = extract_heart_sound(audio)
     spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
     spectrogram = librosa.power_to_db(spectrogram)
@@ -104,17 +113,20 @@ else:
 wav_audio_data = st_audiorec()
 
 # File uploader
-uploaded_file = st.file_uploader("Choose a file", type=['wav'])
+uploaded_file = st.file_uploader("Choose a file", type=['wav', 'mp3', 'm4a'])
 
 # Use recorded audio or uploaded file for prediction
 audio_data = None
+file_format = None
 
 if wav_audio_data is not None:
     audio_data = wav_audio_data
+    file_format = 'wav'
     st.audio(wav_audio_data, format='audio/wav')
 elif uploaded_file is not None:
     audio_data = uploaded_file
-    st.audio(uploaded_file, format='audio/wav')
+    file_format = uploaded_file.type.split('/')[1]
+    st.audio(uploaded_file, format=uploaded_file.type)
 
 # Display audio waveform if recording or file upload is finished
 if audio_data is not None:
@@ -129,8 +141,7 @@ if audio_data is not None:
     # Upload button
     if st.button('Diagnose'):
         with st.spinner('Uploading audio and getting prediction...'):
-            audio_file = io.BytesIO(audio_data)
-            spectrogram = preprocess_audio(audio_file)
+            spectrogram = preprocess_audio(audio_data, file_format)
 
             # Make prediction
             y_pred = model.predict(spectrogram)
