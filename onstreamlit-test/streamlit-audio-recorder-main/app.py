@@ -55,8 +55,12 @@ def preprocess_audio(raw_audio):
         audio = np.frombuffer(raw_audio, dtype=np.float32)
         
         # Normalize audio data
-        if np.max(np.abs(audio)) != 0:
-            audio = audio / np.max(np.abs(audio))
+        max_val = np.max(np.abs(audio))
+        if max_val > 0:
+            audio = audio / max_val
+        else:
+            # Handle the case where max_val is zero (e.g., all zeros in audio data)
+            raise ValueError("Audio data contains all zeros or invalid values")
         
         # Validate the audio data
         if not np.isfinite(audio).all():
