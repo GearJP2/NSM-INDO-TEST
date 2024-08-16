@@ -17,10 +17,10 @@ def create_drive_client():
     # Define the scopes
     scope = ['https://www.googleapis.com/auth/drive']
     
-    # Check if the service account file exists
+    # The actual filename of your service account JSON file
     service_account_file = 'heart-d9410-9a288317e3c7.json'
     if not os.path.exists(service_account_file):
-        st.error("Service account file not found. Please upload the 'service_account.json' file.")
+        st.error(f"Service account file '{service_account_file}' not found. Please upload the file.")
         st.stop()
     
     # Authenticate using service account credentials
