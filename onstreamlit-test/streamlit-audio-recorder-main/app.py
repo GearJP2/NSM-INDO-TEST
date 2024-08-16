@@ -82,24 +82,34 @@ def preprocess_audio(file):
 
     return spectrogram
 
+# Streamlit app
+st.title('Audio Classification with TensorFlow')
+
+# Audio recording
+audio_data = st_audiorec()
+
 # Display audio waveform if recording or file upload is finished
-if audio_data is not None:
+if audio_data:
     # Simulate a progress bar for the recording
     progress_text = st.empty()
     progress_bar = st.progress(0)
     for percent_complete in range(100):
         time.sleep(0.1)
         progress_bar.progress(percent_complete + 1)
-    progress_text.text("ดำเนินการอัดเสียงเสร็จสิ้น กดปุ่มข้างล่างเพื่อรับผลการทำนายโรค")
+    progress_text.text("Recording complete. Press the button below to get the prediction.")
 
     # Upload button
     if st.button('Diagnose'):
-        with st.spinner('Uploading audio and getting prediction...'):
+        with st.spinner('Processing audio and getting prediction...'):
             # Preprocess the audio file
-            spectrogram = preprocess_audio(audio_data)
+            # Convert audio_data from bytes to a file-like object
+            audio_file = io.BytesIO(audio_data)
+            spectrogram = preprocess_audio(audio_file)
 
             # Make prediction
             y_pred = model.predict(spectrogram)
             y_pred_class = np.argmax(y_pred, axis=1)
             result = encoder.inverse_transform(y_pred_class)
             st.write(f"Prediction: {result[0]}")
+else:
+    st.write("Record an audio clip to start.")
