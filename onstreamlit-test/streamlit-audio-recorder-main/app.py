@@ -11,109 +11,110 @@ from oauth2client.service_account import ServiceAccountCredentials
 import time
 import os
 
-# Authenticate and create the PyDrive client
+st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
+
+# Custom CSS to style the UI
+st.markdown('''
+    <style>
+        .css-1egvi7u {margin-top: -3rem;}
+        .stAudio {height: 45px;}
+        .css-v37k9u a, .css-nlntq9 a {color: #ff4c4b;}
+        .header {background-color: #b71c1c; color: white; padding: 10px;}
+        .title {font-size: 30px; margin-bottom: 10px;}
+        .waveform {background-color: #f0f0f0; padding: 20px; border-radius: 5px;}
+        .progress-bar {margin-top: 20px;}
+    </style>
+''', unsafe_allow_html=True)
+
+# Header
+st.markdown('<div class="header"><div class="title">Heart Sound Recorder</div></div>', unsafe_allow_html=True)
+
+# Recording status text
+recording_status = st.empty()
+
+# Function to initialize Google Drive client
 @st.cache_resource
 def create_drive_client():
-    # Define the scopes
-    scope = ['https://www.googleapis.com/auth/drive']
-    
-    # Authenticate using service account credentials
-    creds = ServiceAccountCredentials.from_json_keyfile_name('onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json', scope)
-    gauth = GoogleAuth()
-    gauth.credentials = creds
-    drive = GoogleDrive(gauth)
-    return drive
+    try:
+        scope = ['https://www.googleapis.com/auth/drive']
+        creds = ServiceAccountCredentials.from_json_keyfile_name('service_account.json', scope)
+        gauth = GoogleAuth()
+        gauth.credentials = creds
+        drive = GoogleDrive(gauth)
+        return drive
+    except Exception as e:
+        st.error(f"Error creating Google Drive client: {e}")
 
 drive = create_drive_client()
 
 # Function to download files from Google Drive
 def download_from_drive(file_id, download_path):
-    file = drive.CreateFile({'id': file_id})
-    file.GetContentFile(download_path)
+    try:
+        file = drive.CreateFile({'id': file_id})
+        file.GetContentFile(download_path)
+    except Exception as e:
+        st.error(f"Error downloading file from Google Drive: {e}")
 
 # Set the Google Drive file IDs
 MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
 LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 
-# Load the pre-trained model and encoder from Google Drive
+# Function to load model and labels
 @st.cache_resource
 def load_model_and_labels():
-    download_from_drive(MODEL_FILE_ID, 'my_model.h5')
-    download_from_drive(LABELS_FILE_ID, 'labels.csv')
-    model = tf.keras.models.load_model('my_model.h5')
-    labels = pd.read_csv('labels.csv')
-    encoder = LabelEncoder()
-    encoder.fit(labels['label'])
-    return model, encoder
+    try:
+        download_from_drive(MODEL_FILE_ID, 'my_model.h5')
+        download_from_drive(LABELS_FILE_ID, 'labels.csv')
+        model = tf.keras.models.load_model('my_model.h5')
+        labels = pd.read_csv('labels.csv')
+        encoder = LabelEncoder()
+        encoder.fit(labels['label'])
+        return model, encoder
+    except Exception as e:
+        st.error(f"Error loading model and labels: {e}")
 
 model, encoder = load_model_and_labels()
 
 # Function to preprocess the audio file
-def preprocess_audio(raw_audio):
+def preprocess_audio(file):
     try:
-        # Convert raw audio data to a numpy array
-        audio = np.frombuffer(raw_audio, dtype=np.float32)
-        
-        # Normalize audio data
+        audio, sample_rate = librosa.load(file, sr=None)
+        if not np.isfinite(audio).all():
+            raise ValueError("Audio buffer contains non-finite values")
         max_val = np.max(np.abs(audio))
         if max_val > 0:
             audio = audio / max_val
         else:
-            # Handle the case where max_val is zero (e.g., all zeros in audio data)
             raise ValueError("Audio data contains all zeros or invalid values")
-        
-        # Validate the audio data
-        if not np.isfinite(audio).all():
-            raise ValueError("Audio buffer contains non-finite values")
-        
-        # Assuming the sample rate is 44.1kHz for the audio data
-        sample_rate = 44100
-
-        # Generate the spectrogram
         spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
         spectrogram = librosa.power_to_db(spectrogram)
-
-        # Define a fixed length for the spectrogram
-        fixed_length = 1000  # Adjust this value as necessary
-
-        # Pad or truncate the spectrogram to the fixed length
+        fixed_length = 1000
         if spectrogram.shape[1] > fixed_length:
             spectrogram = spectrogram[:, :fixed_length]
         else:
             padding = fixed_length - spectrogram.shape[1]
             spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
-
-        # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
-
         return spectrogram
     except Exception as e:
-        raise ValueError(f"Error in audio processing: {e}")
-
-# Main Streamlit app logic
-audio_data = st_audiorec()  # Use the st_audiorec function to record audio
+        st.error(f"Error in audio processing: {e}")
 
 # Display audio waveform if recording or file upload is finished
+audio_data = None  # Ensure audio_data is properly initialized
 if audio_data is not None:
-    # Simulate a progress bar for the recording
-    progress_text = st.empty()
-    progress_bar = st.progress(0)
-    for percent_complete in range(100):
-        time.sleep(0.1)
-        progress_bar.progress(percent_complete + 1)
-    progress_text.text("Recording complete. Click the button below to diagnose.")
-
-    # Upload button
-    if st.button('Diagnose'):
-        with st.spinner('Uploading audio and getting prediction...'):
-            try:
-                # Preprocess the audio file
+    try:
+        progress_text = st.empty()
+        progress_bar = st.progress(0)
+        for percent_complete in range(100):
+            time.sleep(0.1)
+            progress_bar.progress(percent_complete + 1)
+        progress_text.text("ดำเนินการอัดเสียงเสร็จสิ้น กดปุ่มข้างล่างเพื่อรับผลการทำนายโรค")
+        if st.button('Diagnose'):
+            with st.spinner('Uploading audio and getting prediction...'):
                 spectrogram = preprocess_audio(audio_data)
-
-                # Make prediction
                 y_pred = model.predict(spectrogram)
                 y_pred_class = np.argmax(y_pred, axis=1)
                 result = encoder.inverse_transform(y_pred_class)
-                st.success(f'Diagnosis result: {result[0]}')
-            except ValueError as e:
-                st.error(f"Error in audio processing: {e}")
+                st.write(f"Prediction: {result[0]}")
+    except Exception as e:
+        st.error(f"Error during diagnosis: {e}")
