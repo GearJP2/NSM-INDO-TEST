@@ -5,78 +5,41 @@ import pandas as pd
 import librosa
 import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder
-import boto3
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
+from oauth2client.service_account import ServiceAccountCredentials
 import time
+import os
 
-# Set the page configuration
-st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
+# Authenticate and create the PyDrive client
+@st.cache_resource
+def create_drive_client():
+    # Define the scopes
+    scope = ['https://www.googleapis.com/auth/drive']
+    
+    # Authenticate using service account credentials
+    creds = ServiceAccountCredentials.from_json_keyfile_name('service_account.json', scope)
+    gauth = GoogleAuth()
+    gauth.credentials = creds
+    drive = GoogleDrive(gauth)
+    return drive
 
-# Custom CSS to style the UI
-st.markdown('''
-    <style>
-        .css-1egvi7u {margin-top: -3rem;}
-        .stAudio {height: 45px;}
-        .css-v37k9u a, .css-nlntq9 a {color: #ff4c4b;}
-        .header {background-color: #b71c1c; color: white; padding: 10px;}
-        .title {font-size: 30px; margin-bottom: 10px;}
-        .waveform {background-color: #f0f0f0; padding: 20px; border-radius: 5px;}
-        .progress-bar {margin-top: 20px;}
-    </style>
-''', unsafe_allow_html=True)
+drive = create_drive_client()
 
-# Header
-st.markdown('<div class="header"><div class="title">Heart Sound Recorder</div></div>', unsafe_allow_html=True)
+# Function to download files from Google Drive
+def download_from_drive(file_id, download_path):
+    file = drive.CreateFile({'id': file_id})
+    file.GetContentFile(download_path)
 
-# Recording status text
-recording_status = st.empty()
+# Set the Google Drive file IDs
+MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
+LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 
-# Initialize recording state
-if 'recording' not in st.session_state:
-    st.session_state['recording'] = False
-
-# Update recording status text based on the recording state
-if st.session_state['recording']:
-    recording_status.markdown('<div class="waveform">กำลังบันทึกเสียง</div>', unsafe_allow_html=True)
-else:
-    recording_status.markdown('<div class="waveform">กดเพื่อบันทึกเสียง</div>', unsafe_allow_html=True)
-
-# Audio recorder
-wav_audio_data = st_audiorec()
-
-# File uploader
-uploaded_file = st.file_uploader("Choose a file", type=['wav'])
-
-# Use recorded audio or uploaded file for prediction
-audio_data = None
-
-if wav_audio_data is not None:
-    audio_data = wav_audio_data
-    st.audio(wav_audio_data, format='audio/wav')
-elif uploaded_file is not None:
-    audio_data = uploaded_file
-    st.audio(uploaded_file, format='audio/wav')
-
-# Load the pre-trained model and encoder from S3
-AWS_ACCESS_KEY_ID = 'AKIAQE43KAXRWF4UZUQL'
-AWS_SECRET_ACCESS_KEY = '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'
-S3_BUCKET_NAME = 'model-mcexcel'
-MODEL_FILE_KEY = 'my_model.h5'
-LABELS_FILE_KEY = 'labels.csv'
-
-# Function to download files from S3
-def download_from_s3(bucket_name, key, download_path):
-    s3 = boto3.client(
-        's3',
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
-    )
-    s3.download_file(bucket_name, key, download_path)
-
-# Download model and labels from S3
+# Load the pre-trained model and encoder from Google Drive
 @st.cache_resource
 def load_model_and_labels():
-    download_from_s3(S3_BUCKET_NAME, MODEL_FILE_KEY, 'my_model.h5')
-    download_from_s3(S3_BUCKET_NAME, LABELS_FILE_KEY, 'labels.csv')
+    download_from_drive(MODEL_FILE_ID, 'my_model.h5')
+    download_from_drive(LABELS_FILE_ID, 'labels.csv')
     model = tf.keras.models.load_model('my_model.h5')
     labels = pd.read_csv('labels.csv')
     encoder = LabelEncoder()
@@ -128,5 +91,3 @@ if audio_data is not None:
             y_pred = model.predict(spectrogram)
             y_pred_class = np.argmax(y_pred, axis=1)
             result = encoder.inverse_transform(y_pred_class)
-
-            st.write(f"Prediction: {result[0]}")
