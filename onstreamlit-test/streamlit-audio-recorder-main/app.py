@@ -18,7 +18,7 @@ def create_drive_client():
     scope = ['https://www.googleapis.com/auth/drive']
     
     # The actual filename of your service account JSON file
-    service_account_file = 'heart-d9410-9a288317e3c7.json'  # Update this path as necessary
+    service_account_file = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'  # Update this path as necessary
     if not os.path.exists(service_account_file):
         st.error(f"Service account file '{service_account_file}' not found. Please upload the file.")
         st.stop()
