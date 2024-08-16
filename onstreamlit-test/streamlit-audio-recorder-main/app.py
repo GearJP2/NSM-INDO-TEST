@@ -17,8 +17,14 @@ def create_drive_client():
     # Define the scopes
     scope = ['https://www.googleapis.com/auth/drive']
     
+    # Check if the service account file exists
+    service_account_file = 'service_account.json'
+    if not os.path.exists(service_account_file):
+        st.error("Service account file not found. Please upload the 'service_account.json' file.")
+        st.stop()
+    
     # Authenticate using service account credentials
-    creds = ServiceAccountCredentials.from_json_keyfile_name('service_account.json', scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name(service_account_file, scope)
     gauth = GoogleAuth()
     gauth.credentials = creds
     drive = GoogleDrive(gauth)
@@ -71,6 +77,9 @@ def preprocess_audio(file):
 
     return spectrogram
 
+# Main Streamlit app logic
+audio_data = st_audiorec()  # Use the st_audiorec function to record audio
+
 # Display audio waveform if recording or file upload is finished
 if audio_data is not None:
     # Simulate a progress bar for the recording
@@ -79,7 +88,7 @@ if audio_data is not None:
     for percent_complete in range(100):
         time.sleep(0.1)
         progress_bar.progress(percent_complete + 1)
-    progress_text.text("ดำเนินการอัดเสียงเสร็จสิ้น กดปุ่มข้างล่างเพื่อรับผลการทำนายโรค")
+    progress_text.text("Recording complete. Click the button below to diagnose.")
 
     # Upload button
     if st.button('Diagnose'):
@@ -91,3 +100,4 @@ if audio_data is not None:
             y_pred = model.predict(spectrogram)
             y_pred_class = np.argmax(y_pred, axis=1)
             result = encoder.inverse_transform(y_pred_class)
+            st.success(f'Diagnosis result: {result[0]}')
