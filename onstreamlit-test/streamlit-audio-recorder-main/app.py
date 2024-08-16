@@ -18,7 +18,7 @@ def create_drive_client():
     scope = ['https://www.googleapis.com/auth/drive']
     
     # The actual filename of your service account JSON file
-    service_account_file = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'  # Update this path as necessary
+    service_account_file = 'heart-d9410-9a288317e3c7.json'  # Update this path as necessary
     if not os.path.exists(service_account_file):
         st.error(f"Service account file '{service_account_file}' not found. Please upload the file.")
         st.stop()
@@ -58,7 +58,11 @@ model, encoder = load_model_and_labels()
 def preprocess_audio(raw_audio):
     # Convert raw audio data to a numpy array
     audio = np.frombuffer(raw_audio, dtype=np.float32)
-    
+
+    # Validate the audio data
+    if not np.isfinite(audio).all():
+        raise ValueError("Audio buffer contains non-finite values")
+
     # Assuming the sample rate is 44.1kHz for the audio data
     sample_rate = 44100
 
@@ -97,11 +101,14 @@ if audio_data is not None:
     # Upload button
     if st.button('Diagnose'):
         with st.spinner('Uploading audio and getting prediction...'):
-            # Preprocess the audio file
-            spectrogram = preprocess_audio(audio_data)
+            try:
+                # Preprocess the audio file
+                spectrogram = preprocess_audio(audio_data)
 
-            # Make prediction
-            y_pred = model.predict(spectrogram)
-            y_pred_class = np.argmax(y_pred, axis=1)
-            result = encoder.inverse_transform(y_pred_class)
-            st.success(f'Diagnosis result: {result[0]}')
+                # Make prediction
+                y_pred = model.predict(spectrogram)
+                y_pred_class = np.argmax(y_pred, axis=1)
+                result = encoder.inverse_transform(y_pred_class)
+                st.success(f'Diagnosis result: {result[0]}')
+            except ValueError as e:
+                st.error(f"Error in audio processing: {e}")
