@@ -82,6 +82,40 @@ def preprocess_audio(file):
     spectrogram = spectrogram.reshape((1, 128, 1000, 1))
 
     return spectrogram
+    
+def predict():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    # Load the audio file
+    audio, sample_rate = librosa.load(file, sr=None)
+
+    # Preprocess the audio file
+    spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
+    spectrogram = librosa.power_to_db(spectrogram)
+
+    # Pad or truncate the spectrogram to the fixed length
+    fixed_length = 1000
+    if spectrogram.shape[1] > fixed_length:
+        spectrogram = spectrogram[:, :fixed_length]
+    else:
+        padding = fixed_length - spectrogram.shape[1]
+        spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
+
+    # Reshape the data to fit the model
+    spectrogram = spectrogram.reshape(1, 128, 1000, 1)
+
+    # Make prediction
+    y_pred = model.predict(spectrogram)
+    y_pred_class = np.argmax(y_pred, axis=1)
+    result = encoder.inverse_transform(y_pred_class)
+
+    return jsonify({"result": result[0]})
+
 
 # Streamlit app
 st.title('Audio Classification with TensorFlow')
