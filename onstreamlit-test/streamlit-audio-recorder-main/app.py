@@ -11,33 +11,13 @@ from oauth2client.service_account import ServiceAccountCredentials
 import time
 import os
 
-st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
-
-# Custom CSS to style the UI
-st.markdown('''
-    <style>
-        .css-1egvi7u {margin-top: -3rem;}
-        .stAudio {height: 45px;}
-        .css-v37k9u a, .css-nlntq9 a {color: #ff4c4b;}
-        .header {background-color: #b71c1c; color: white; padding: 10px;}
-        .title {font-size: 30px; margin-bottom: 10px;}
-        .waveform {background-color: #f0f0f0; padding: 20px; border-radius: 5px;}
-        .progress-bar {margin-top: 20px;}
-    </style>
-''', unsafe_allow_html=True)
-
-# Header
-st.markdown('<div class="header"><div class="title">Heart Sound Recorder</div></div>', unsafe_allow_html=True)
-
-# Recording status text
-recording_status = st.empty()
 
 # Function to initialize Google Drive client
 @st.cache_resource
 def create_drive_client():
     try:
         scope = ['https://www.googleapis.com/auth/drive']
-        creds = ServiceAccountCredentials.from_json_keyfile_name('service_account.json', scope)
+        creds = ServiceAccountCredentials.from_json_keyfile_name('onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json', scope)
         gauth = GoogleAuth()
         gauth.credentials = creds
         drive = GoogleDrive(gauth)
