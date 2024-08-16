@@ -1,9 +1,6 @@
 # Import necessary libraries
 import streamlit as st
 from st_audiorec import st_audiorec
-import requests
-import time
-from flask import Flask, request, jsonify
 import numpy as np
 import pandas as pd
 import librosa
@@ -12,16 +9,11 @@ from sklearn.preprocessing import LabelEncoder
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 from oauth2client.service_account import ServiceAccountCredentials
-import threading
+import time
 import io
-import os
-
-# Initialize Flask app
-flask_app = Flask(__name__)
 
 # Function to create Google Drive client
 def create_drive_client():
-    # Define the scopes
     scope = ['https://www.googleapis.com/auth/drive']
     creds = ServiceAccountCredentials.from_json_keyfile_name('onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json', scope)
     gauth = GoogleAuth()
@@ -76,30 +68,10 @@ def preprocess_audio(file):
     spectrogram = spectrogram.reshape((1, 128, 1000, 1))
     return spectrogram
 
-# Flask route for prediction
-@flask_app.route('/predict', methods=['POST'])
-def predict():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file provided"}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-    audio, sample_rate = librosa.load(file, sr=None)
-    spectrogram = preprocess_audio(file)
-    y_pred = model.predict(spectrogram)
-    y_pred_class = np.argmax(y_pred, axis=1)
-    result = encoder.inverse_transform(y_pred_class)
-    return jsonify({"result": result[0]})
-
-# Function to run Flask app in a separate thread
-def run_flask_app():
-    flask_app.run(port=5000)
-
-# Start Flask app in a separate thread
-threading.Thread(target=run_flask_app).start()
-
-# Streamlit UI
+# Set the page configuration
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
+
+# Custom CSS to style the UI
 st.markdown('''
     <style>
         .css-1egvi7u {margin-top: -3rem;}
@@ -112,19 +84,29 @@ st.markdown('''
     </style>
 ''', unsafe_allow_html=True)
 
+# Header
 st.markdown('<div class="header"><div class="title">Heart Sound Recorder</div></div>', unsafe_allow_html=True)
 
+# Recording status text
 recording_status = st.empty()
+
+# Initialize recording state
 if 'recording' not in st.session_state:
     st.session_state['recording'] = False
 
+# Update recording status text based on the recording state
 if st.session_state['recording']:
     recording_status.markdown('<div class="waveform">Recording...</div>', unsafe_allow_html=True)
 else:
     recording_status.markdown('<div class="waveform">Click to start recording</div>', unsafe_allow_html=True)
 
+# Audio recorder
 wav_audio_data = st_audiorec()
+
+# File uploader
 uploaded_file = st.file_uploader("Choose a file", type=['wav'])
+
+# Use recorded audio or uploaded file for prediction
 audio_data = None
 
 if wav_audio_data is not None:
@@ -134,21 +116,25 @@ elif uploaded_file is not None:
     audio_data = uploaded_file
     st.audio(uploaded_file, format='audio/wav')
 
+# Display audio waveform if recording or file upload is finished
 if audio_data is not None:
+    # Simulate a progress bar for the recording
     progress_text = st.empty()
     progress_bar = st.progress(0)
     for percent_complete in range(100):
         time.sleep(0.1)
         progress_bar.progress(percent_complete + 1)
     progress_text.text("Recording complete. Click the button below to get the diagnosis.")
+
+    # Upload button
     if st.button('Diagnose'):
         with st.spinner('Uploading audio and getting prediction...'):
-            url = "http://127.0.0.1:5000/predict"
-            files = {'file': ('audio.wav', audio_data, 'audio/wav')}
-            response = requests.post(url, files=files)
-            if response.status_code == 200:
-                prediction = response.json()
-                st.write(f"Prediction: {prediction['result']}")
-            else:
-                st.write("Failed to get prediction")
+            audio_file = io.BytesIO(audio_data)
+            spectrogram = preprocess_audio(audio_file)
 
+            # Make prediction
+            y_pred = model.predict(spectrogram)
+            y_pred_class = np.argmax(y_pred, axis=1)
+            result = encoder.inverse_transform(y_pred_class)
+
+            st.write(f"Prediction: {result[0]}")
