@@ -18,7 +18,7 @@ def create_drive_client():
     scope = ['https://www.googleapis.com/auth/drive']
     
     # The actual filename of your service account JSON file
-    service_account_file = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
+    service_account_file = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'  # Update this path as necessary
     if not os.path.exists(service_account_file):
         st.error(f"Service account file '{service_account_file}' not found. Please upload the file.")
         st.stop()
@@ -55,8 +55,12 @@ def load_model_and_labels():
 model, encoder = load_model_and_labels()
 
 # Function to preprocess the audio file
-def preprocess_audio(file):
-    audio, sample_rate = librosa.load(file, sr=None)
+def preprocess_audio(raw_audio):
+    # Convert raw audio data to a numpy array
+    audio = np.frombuffer(raw_audio, dtype=np.float32)
+    
+    # Assuming the sample rate is 44.1kHz for the audio data
+    sample_rate = 44100
 
     # Generate the spectrogram
     spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
