@@ -96,7 +96,22 @@ def preprocess_audio(file, file_format):
  except Exception as e:
         st.error(f"Error processing audio: {e}")
         raise
-        
+
+def plot_accuracy(true_labels, predictions):
+    accuracy = accuracy_score(true_labels, predictions)
+    st.write(f'Accuracy: {accuracy:.2f}')
+
+    # Plot accuracy
+    plt.figure(figsize=(10, 5))
+    plt.plot(true_labels, label='True Labels', marker='o')
+    plt.plot(predictions, label='Predictions', marker='x')
+    plt.xlabel('Sample Index')
+    plt.ylabel('Label')
+    plt.title('True Labels vs Predictions')
+    plt.legend()
+    plt.grid(True)
+    st.pyplot(plt)
+    
 # Streamlit interface for recording and uploading audio files
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
 
@@ -149,8 +164,25 @@ if audio_data is not None:
 
     if st.button('Diagnose'):
         with st.spinner('Uploading audio and getting prediction...'):
-            spectrogram = preprocess_audio(audio_data, file_format)
-            y_pred = model.predict(spectrogram)
-            y_pred_class = np.argmax(y_pred, axis=1)
-            result = encoder.inverse_transform(y_pred_class)
-            st.write(f"Prediction: {result[0]}")
+            try:
+                spectrogram = preprocess_audio(audio_data, file_format)
+                spectrogram = np.expand_dims(spectrogram, axis=-1)
+                spectrogram = np.expand_dims(spectrogram, axis=0)
+
+                y_pred = model.predict(spectrogram)
+                y_pred_class = np.argmax(y_pred, axis=1)
+                result = encoder.inverse_transform(y_pred_class)
+
+                st.success(f'Prediction: {result[0]}')
+
+                # Update session state with new predictions and true labels
+                # For demonstration, we're assuming true_labels is a list of true labels
+                true_labels = [...]  # Replace with actual true labels list
+                st.session_state['predictions'].append(y_pred_class[0])
+                st.session_state['true_labels'].append(true_labels[0])
+
+                # Plot accuracy
+                plot_accuracy(st.session_state['true_labels'], st.session_state['predictions'])
+
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
