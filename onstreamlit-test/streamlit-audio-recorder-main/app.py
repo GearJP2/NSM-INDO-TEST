@@ -63,7 +63,7 @@ elif uploaded_file is not None:
 def authenticate_gdrive():
     gauth = GoogleAuth()
     scope = ['https://www.googleapis.com/auth/drive']
-    credentials = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+    credentials = ServiceAccountCredentials.from_json_keyfile_name('onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json', scope)
     gauth.credentials = credentials
     drive = GoogleDrive(gauth)
     return drive
@@ -77,8 +77,8 @@ def download_from_gdrive(drive, file_id, download_path):
 drive = authenticate_gdrive()
 
 # IDs of the files in Google Drive
-MODEL_FILE_ID = 'your_model_file_id'
-LABELS_FILE_ID = 'your_labels_file_id'
+MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
+LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 
 # Paths to store downloaded files
 MODEL_FILE_PATH = 'my_model.h5'
