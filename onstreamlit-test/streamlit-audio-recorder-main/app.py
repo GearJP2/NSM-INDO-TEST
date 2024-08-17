@@ -132,13 +132,16 @@ if audio_data is not None:
         progress_bar.progress(percent_complete + 1)
     progress_text.text("Recording complete. Click the button below to get the prediction.")
 
-    if st.button('Diagnose'):
-        with st.spinner('Uploading audio and getting prediction...'):
-            try:
-                spectrogram = preprocess_audio(audio_data, file_format)
-                y_pred = model.predict(spectrogram)
-                y_pred_class = np.argmax(y_pred, axis=1)
-                result = encoder.inverse_transform(y_pred_class)
-                st.write(f"Prediction: {result[0]}")
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
+if st.button('Diagnose'):
+    with st.spinner('Uploading audio and getting prediction...'):
+        try:
+            spectrogram = preprocess_audio(audio_data, file_format)
+            y_pred = model.predict(spectrogram)
+            y_pred_class = np.argmax(y_pred, axis=1)
+            result = encoder.inverse_transform(y_pred_class)
+            st.write(f"Prediction: {result[0]}")
+        except ValueError as ve:
+            st.error(f"Value error: {ve}")
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+
