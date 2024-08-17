@@ -13,7 +13,7 @@ from googleapiclient.http import MediaIoBaseDownload
 import audioread
 
 # Google Drive setup
-SERVICE_ACCOUNT_FILE = 'path/to/your/service-account-file.json'
+SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
 credentials = service_account.Credentials.from_service_account_file(
@@ -29,8 +29,8 @@ def download_file_from_google_drive(file_id, destination):
             status, done = downloader.next_chunk()
             print(f"Download {int(status.progress() * 100)}%.")
 
-GOOGLE_DRIVE_MODEL_FILE_ID = 'your-model-file-id'
-GOOGLE_DRIVE_LABELS_FILE_ID = 'your-labels-file-id'
+GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
+GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 MODEL_FILE_PATH = 'my_model.h5'
 LABELS_FILE_PATH = 'labels.csv'
 
