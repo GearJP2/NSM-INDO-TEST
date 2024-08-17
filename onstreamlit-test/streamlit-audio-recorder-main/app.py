@@ -53,43 +53,51 @@ def extract_heart_sound(audio):
 
 # Function to preprocess the audio file
 def preprocess_audio(file, file_format):
-    file_bytes = io.BytesIO(file.read())
-
-    if file_format == 'mp3':
-        audio = AudioSegment.from_mp3(file_bytes)
-    elif file_format == 'm4a':
-        audio = AudioSegment.from_file(file_bytes, format='m4a')
-    elif file_format == 'wav':
-        audio = AudioSegment.from_wav(file_bytes)
-    else:
-        raise ValueError("Unsupported file format")
-
-    sample_rate = audio.frame_rate  # Get the sample rate before conversion
-    audio = np.array(audio.get_array_of_samples(), dtype=np.float32)
-    audio = audio / np.max(np.abs(audio))  # Normalize the audio
-
-    # Extract heart sound using Fourier transform
-    heart_sound = extract_heart_sound(audio)
-
-    # Generate the spectrogram
-    spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
-    spectrogram = librosa.power_to_db(spectrogram)
-
-    # Define a fixed length for the spectrogram
-    fixed_length = 1000  # Adjust this value as necessary
-
-    # Pad or truncate the spectrogram to the fixed length
-    if spectrogram.shape[1] > fixed_length:
-        spectrogram = spectrogram[:, :fixed_length]
-    else:
-        padding = fixed_length - spectrogram.shape[1]
-        spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
-
-    # Reshape the spectrogram to fit the model
-    spectrogram = spectrogram.reshape((1, 128, 1000, 1))
-
-    return spectrogram
-
+ try:
+        # Convert the uploaded file to a format librosa can read (PCM WAV)
+        if file_format == "wav":
+            audio = AudioSegment.from_wav(io.BytesIO(audio_data))
+        elif file_format == "mp3":
+            audio = AudioSegment.from_mp3(io.BytesIO(audio_data))
+        elif file_format == "m4a":
+            audio = AudioSegment.from_file(io.BytesIO(audio_data), format="m4a")
+        else:
+            st.error(f"Unsupported file format: {file_format}")
+            raise ValueError("Unsupported file format")
+            
+        wav_io = io.BytesIO()
+        audio.export(wav_io, format="wav")
+        wav_io.seek(0)
+     
+        sample_rate = audio.frame_rate  # Get the sample rate before conversion
+        audio = np.array(audio.get_array_of_samples(), dtype=np.float32)
+        audio = audio / np.max(np.abs(audio))  # Normalize the audio
+    
+        # Extract heart sound using Fourier transform
+        heart_sound = extract_heart_sound(audio)
+    
+        # Generate the spectrogram
+        spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
+        spectrogram = librosa.power_to_db(spectrogram)
+    
+        # Define a fixed length for the spectrogram
+        fixed_length = 1000  # Adjust this value as necessary
+    
+        # Pad or truncate the spectrogram to the fixed length
+        if spectrogram.shape[1] > fixed_length:
+            spectrogram = spectrogram[:, :fixed_length]
+        else:
+            padding = fixed_length - spectrogram.shape[1]
+            spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
+    
+        # Reshape the spectrogram to fit the model
+        spectrogram = spectrogram.reshape((1, 128, 1000, 1))
+    
+        return spectrogram
+    except Exception as e:
+        st.error(f"Error processing audio: {e}")
+        raise
+        
 # Streamlit interface for recording and uploading audio files
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
 
