@@ -68,7 +68,10 @@ def preprocess_audio(file, file_format):
         wav_io = io.BytesIO()
         audio.export(wav_io, format="wav")
         wav_io.seek(0)
-       
+     
+        sample_rate = audio.frame_rate  # Get the sample rate before conversion
+        audio = np.array(audio.get_array_of_samples(), dtype=np.float32)
+        audio = audio / np.max(np.abs(audio))  # Normalize the audio
         # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
     
@@ -90,7 +93,7 @@ def preprocess_audio(file, file_format):
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
     
         return spectrogram
-    except Exception as e:
+    except Exception:
         st.error(f"Error processing audio: {e}")
         raise
         
