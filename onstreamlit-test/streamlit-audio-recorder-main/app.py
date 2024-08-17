@@ -1,8 +1,7 @@
 import io
-import time
 import numpy as np
-import pandas as pd
 import librosa
+import pandas as pd
 import tensorflow as tf
 import streamlit as st
 from sklearn.preprocessing import LabelEncoder
@@ -45,73 +44,43 @@ encoder = LabelEncoder()
 labels = pd.read_csv(LABELS_FILE_PATH)
 encoder.fit(labels['label'])
 
-# Function to extract heart sounds using Fourier transform
-def extract_heart_sound(audio):
-    fourier_transform = np.fft.fft(audio)
-    heart_sound = np.abs(fourier_transform)
-    return heart_sound
-
 # Function to preprocess the audio file
 def preprocess_audio(file, file_format):
- try:
-        # Convert the uploaded file to a format librosa can read (PCM WAV)
-        if file_format == "wav":
-            audio = AudioSegment.from_wav(io.BytesIO(audio_data))
-        elif file_format == "mp3":
-            audio = AudioSegment.from_mp3(io.BytesIO(audio_data))
-        elif file_format == "m4a":
-            audio = AudioSegment.from_file(io.BytesIO(audio_data), format="m4a")
-        else:
-            st.error(f"Unsupported file format: {file_format}")
-            raise ValueError("Unsupported file format")
-            
-        wav_io = io.BytesIO()
-        audio.export(wav_io, format="wav")
-        wav_io.seek(0)
-     
-        sample_rate = audio.frame_rate  # Get the sample rate before conversion
-        audio = np.array(audio.get_array_of_samples(), dtype=np.float32)
-        audio = audio / np.max(np.abs(audio))  # Normalize the audio
-        # Extract heart sound using Fourier transform
-        heart_sound = extract_heart_sound(audio)
-    
-        # Generate the spectrogram
-        spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
-        spectrogram = librosa.power_to_db(spectrogram)
-    
-        # Define a fixed length for the spectrogram
-        fixed_length = 1000  # Adjust this value as necessary
-    
-        # Pad or truncate the spectrogram to the fixed length
-        if spectrogram.shape[1] > fixed_length:
-            spectrogram = spectrogram[:, :fixed_length]
-        else:
-            padding = fixed_length - spectrogram.shape[1]
-            spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
-    
-        # Reshape the spectrogram to fit the model
-        spectrogram = spectrogram.reshape((1, 128, 1000, 1))
-    
-        return spectrogram
- except Exception as e:
-        st.error(f"Error processing audio: {e}")
-        raise
+    # Read the file content as bytes
+    file_bytes = file.read()
 
-def plot_accuracy(true_labels, predictions):
-    accuracy = accuracy_score(true_labels, predictions)
-    st.write(f'Accuracy: {accuracy:.2f}')
+    if file_format == 'mp3':
+        audio = AudioSegment.from_mp3(io.BytesIO(file_bytes))
+    elif file_format == 'm4a':
+        audio = AudioSegment.from_file(io.BytesIO(file_bytes), format='m4a')
+    elif file_format == 'wav':
+        audio = AudioSegment.from_wav(io.BytesIO(file_bytes))
+    else:
+        raise ValueError("Unsupported file format")
 
-    # Plot accuracy
-    plt.figure(figsize=(10, 5))
-    plt.plot(true_labels, label='True Labels', marker='o')
-    plt.plot(predictions, label='Predictions', marker='x')
-    plt.xlabel('Sample Index')
-    plt.ylabel('Label')
-    plt.title('True Labels vs Predictions')
-    plt.legend()
-    plt.grid(True)
-    st.pyplot(plt)
-    
+    sample_rate = audio.frame_rate  # Get the sample rate before conversion
+    audio = np.array(audio.get_array_of_samples(), dtype=np.float32)
+    audio = audio / np.max(np.abs(audio))  # Normalize the audio
+
+    # Generate the spectrogram
+    spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
+    spectrogram = librosa.power_to_db(spectrogram)
+
+    # Define a fixed length for the spectrogram
+    fixed_length = 1000  # Adjust this value as necessary
+
+    # Pad or truncate the spectrogram to the fixed length
+    if spectrogram.shape[1] > fixed_length:
+        spectrogram = spectrogram[:, :fixed_length]
+    else:
+        padding = fixed_length - spectrogram.shape[1]
+        spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
+
+    # Reshape the spectrogram to fit the model
+    spectrogram = spectrogram.reshape((1, 128, 1000, 1))
+
+    return spectrogram
+
 # Streamlit interface for recording and uploading audio files
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
 
@@ -166,23 +135,9 @@ if audio_data is not None:
         with st.spinner('Uploading audio and getting prediction...'):
             try:
                 spectrogram = preprocess_audio(audio_data, file_format)
-                spectrogram = np.expand_dims(spectrogram, axis=-1)
-                spectrogram = np.expand_dims(spectrogram, axis=0)
-
                 y_pred = model.predict(spectrogram)
                 y_pred_class = np.argmax(y_pred, axis=1)
                 result = encoder.inverse_transform(y_pred_class)
-
-                st.success(f'Prediction: {result[0]}')
-
-                # Update session state with new predictions and true labels
-                # For demonstration, we're assuming true_labels is a list of true labels
-                true_labels = ['artifact', 'normal', 'extrahls', 'murmur', 'extrastole']  # Replace with actual true labels list
-                st.session_state['predictions'].append(y_pred_class[0])
-                st.session_state['true_labels'].append(true_labels[0])
-
-                # Plot accuracy
-                plot_accuracy(st.session_state['true_labels'], st.session_state['predictions'])
-
+                st.write(f"Prediction: {result[0]}")
             except Exception as e:
                 st.error(f"An error occurred: {e}")
