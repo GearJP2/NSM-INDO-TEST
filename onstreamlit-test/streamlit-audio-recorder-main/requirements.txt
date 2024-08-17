@@ -20,3 +20,4 @@ pydub>=0.25.1
 pydrive2==1.14.0
 audioread>=2.1.9
 soundfile>=0.10.3
+ffmpeg>=1.4
