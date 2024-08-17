@@ -177,7 +177,7 @@ if audio_data is not None:
 
                 # Update session state with new predictions and true labels
                 # For demonstration, we're assuming true_labels is a list of true labels
-                true_labels = ['artifact': 0, 'normal': 1, 'extrahls': 2, 'murmur': 3, 'extrastole': 4]  # Replace with actual true labels list
+                true_labels = ['artifact', 'normal', 'extrahls', 'murmur', 'extrastole']  # Replace with actual true labels list
                 st.session_state['predictions'].append(y_pred_class[0])
                 st.session_state['true_labels'].append(true_labels[0])
 
