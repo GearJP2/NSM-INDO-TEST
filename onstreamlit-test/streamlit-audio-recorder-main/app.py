@@ -93,7 +93,7 @@ def preprocess_audio(file, file_format):
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
     
         return spectrogram
-    except Exception:
+ except Exception as e:
         st.error(f"Error processing audio: {e}")
         raise
         
