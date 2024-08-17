@@ -15,7 +15,35 @@ import audioread
 
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
+SCOPES = ['https://www.googleapis.com/auth/drive']
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+drive_service = build('drive', 'v3', credentials=credentials)
+def download_file_from_google_drive(file_id, destination):
+    request = drive_service.files().get_media(fileId=file_id)
+    with io.FileIO(destination, 'wb') as fh:
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+            print(f"Download {int(status.progress() * 100)}%.")
+GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
+GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
+MODEL_FILE_PATH = 'my_model.h5'
+LABELS_FILE_PATH = 'labels.csv'
+download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
+download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
+# Load the pre-trained model
+model = tf.keras.models.load_model(MODEL_FILE_PATH)
+# Initialize the encoder
+encoder = LabelEncoder()
+labels = pd.read_csv(LABELS_FILE_PATH)
+encoder.fit(labels['label'])
+# Function to extract heart sounds using Fourier transform
 def extract_heart_sound(audio):
+    fourier_transform = np.fft.fft(audio)
+    heart_sound = np.abs(fourier_transform)
+    return heart_sound
 # Function to preprocess the audio file
 def preprocess_audio(file, file_format):
     file_bytes = io.BytesIO(file.read())
