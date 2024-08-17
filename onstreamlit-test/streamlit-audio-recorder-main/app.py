@@ -6,11 +6,11 @@ import librosa
 import tensorflow as tf
 import streamlit as st
 from sklearn.preprocessing import LabelEncoder
-from pydub import AudioSegment
 from st_audiorec import st_audiorec
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
+import audioread
 
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
@@ -54,23 +54,18 @@ def extract_heart_sound(audio):
 # Function to preprocess the audio file
 def preprocess_audio(file, file_format):
     file_bytes = io.BytesIO(file.read())
-
-    if file_format == 'mp3':
-        audio = AudioSegment.from_mp3(file_bytes)
-    elif file_format == 'm4a':
-        audio = AudioSegment.from_file(file_bytes, format='m4a')
-    else:  # wav
-        audio = AudioSegment.from_wav(file_bytes)
-
-    sample_rate = audio.frame_rate  # Get the sample rate before conversion
-    audio = np.array(audio.get_array_of_samples(), dtype=np.float32)
-    audio = audio / np.max(np.abs(audio))  # Normalize the audio
-
+    
+    # Load the audio file using librosa (which uses audioread)
+    y, sr = librosa.load(file_bytes, sr=None)
+    
+    # Normalize the audio
+    audio = y / np.max(np.abs(y))
+    
     # Extract heart sound using Fourier transform
     heart_sound = extract_heart_sound(audio)
 
     # Generate the spectrogram
-    spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate)
+    spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
     spectrogram = librosa.power_to_db(spectrogram)
 
     # Define a fixed length for the spectrogram
