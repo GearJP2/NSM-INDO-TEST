@@ -15,7 +15,7 @@ import audioread
 
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
-@@ -54,18 +54,25 @@ def extract_heart_sound(audio):
+def extract_heart_sound(audio):
 # Function to preprocess the audio file
 def preprocess_audio(file, file_format):
     file_bytes = io.BytesIO(file.read())
