@@ -65,29 +65,34 @@ def preprocess_audio(file, file_format):
             temp_file.flush()
             temp_file_path = temp_file.name
 
-    # Load the audio file using librosa
-    y, sr = librosa.load(temp_file_path, sr=None)
+    try:
+        # Load the audio file using librosa
+        y, sr = librosa.load(temp_file_path, sr=None)
 
-    # Normalize the audio
-    audio = y / np.max(np.abs(y))
+        # Normalize the audio
+        audio = y / np.max(np.abs(y))
 
-    # Extract heart sound using Fourier transform
-    heart_sound = extract_heart_sound(audio)
+        # Extract heart sound using Fourier transform
+        heart_sound = extract_heart_sound(audio)
 
-    # Generate the spectrogram
-    spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
-    spectrogram = librosa.power_to_db(spectrogram)
+        # Generate the spectrogram
+        spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
+        spectrogram = librosa.power_to_db(spectrogram)
 
-    # Define a fixed length for the spectrogram
-    fixed_length = 1000  # Adjust this value as necessary
-    # Pad or truncate the spectrogram to the fixed length
-    if spectrogram.shape[1] > fixed_length:
-        spectrogram = spectrogram[:, :fixed_length]
-    else:
-        padding = fixed_length - spectrogram.shape[1]
-        spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
-    # Reshape the spectrogram to fit the model
-    spectrogram = spectrogram.reshape((1, 128, 1000, 1))
+        # Define a fixed length for the spectrogram
+        fixed_length = 1000  # Adjust this value as necessary
+        # Pad or truncate the spectrogram to the fixed length
+        if spectrogram.shape[1] > fixed_length:
+            spectrogram = spectrogram[:, :fixed_length]
+        else:
+            padding = fixed_length - spectrogram.shape[1]
+            spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
+        # Reshape the spectrogram to fit the model
+        spectrogram = spectrogram.reshape((1, 128, 1000, 1))
+
+    except Exception as e:
+        st.error(f"Error processing audio: {e}")
+        spectrogram = None
 
     # Clean up the temporary file
     os.remove(temp_file_path)
