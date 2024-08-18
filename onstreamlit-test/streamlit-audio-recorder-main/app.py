@@ -27,7 +27,7 @@ def download_file_from_google_drive(file_id, destination):
     with io.FileIO(destination, 'wb') as fh:
         downloader = MediaIoBaseDownload(fh, request)
         done = False
-        while done is False:
+        while not done:
             status, done = downloader.next_chunk()
             print(f"Download {int(status.progress() * 100)}%.")
 
@@ -52,25 +52,29 @@ def extract_heart_sound(audio):
     return heart_sound
 
 def preprocess_audio(file, file_format):
-    if file_format == 'm4a':
-        # Convert m4a to wav using pydub
-        audio = AudioSegment.from_file(file, format='m4a')
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-            audio.export(temp_file.name, format='wav')
-            temp_file_path = temp_file.name
-    else:
-        # Handle other formats
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
-            temp_file.write(file.read())
-            temp_file.flush()
-            temp_file_path = temp_file.name
-
     try:
+        if file_format == 'm4a':
+            # Convert m4a to wav using pydub
+            audio = AudioSegment.from_file(file, format='m4a')
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+                audio.export(temp_file.name, format='wav')
+                temp_file_path = temp_file.name
+        else:
+            # Handle other formats
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
+                temp_file.write(file.read())
+                temp_file.flush()
+                temp_file_path = temp_file.name
+
+        st.write(f"Temp file path: {temp_file_path}")
+
         # Load the audio file using librosa
         y, sr = librosa.load(temp_file_path, sr=None)
+        st.write(f"Loaded audio shape: {y.shape}, Sample rate: {sr}")
 
         # Normalize the audio
         audio = y / np.max(np.abs(y))
+        st.write(f"Normalized audio shape: {audio.shape}")
 
         # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
@@ -78,6 +82,7 @@ def preprocess_audio(file, file_format):
         # Generate the spectrogram
         spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
         spectrogram = librosa.power_to_db(spectrogram)
+        st.write(f"Spectrogram shape before padding/truncation: {spectrogram.shape}")
 
         # Define a fixed length for the spectrogram
         fixed_length = 1000  # Adjust this value as necessary
@@ -87,6 +92,9 @@ def preprocess_audio(file, file_format):
         else:
             padding = fixed_length - spectrogram.shape[1]
             spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
+
+        st.write(f"Spectrogram shape after padding/truncation: {spectrogram.shape}")
+
         # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
 
@@ -94,11 +102,12 @@ def preprocess_audio(file, file_format):
 
     except Exception as e:
         st.error(f"Error processing audio: {e}")
+        return None
 
     finally:
         # Clean up the temporary file
-        os.remove(temp_file_path)
-
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
 
 # Streamlit interface for recording and uploading audio files
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
@@ -145,15 +154,13 @@ if audio_data is not None:
         progress_bar.progress(percent_complete + 1)
     progress_text.text("Recording complete. Click the button below to get the prediction.")
 
-if st.button('Diagnose'):
-    with st.spinner('Uploading audio and getting prediction...'):
-        spectrogram = preprocess_audio(audio_data, file_format)
-        if spectrogram is not None:
-            try:
+    if st.button('Diagnose'):
+        with st.spinner('Uploading audio and getting prediction...'):
+            spectrogram = preprocess_audio(audio_data, file_format)
+            if spectrogram is not None:
                 y_pred = model.predict(spectrogram)
                 y_pred_class = np.argmax(y_pred, axis=1)
                 result = encoder.inverse_transform(y_pred_class)
                 st.write(f"Prediction: {result[0]}")
-            except Exception as e:
-                st.error(f"Error making prediction: {e}")
-
+            else:
+                st.error("Failed to process the audio.")
