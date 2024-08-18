@@ -1,5 +1,4 @@
 import io
-import time
 import numpy as np
 import pandas as pd
 import librosa
@@ -13,6 +12,8 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import tempfile
 import os
+import time
+import matplotlib.pyplot as plt
 
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
@@ -171,9 +172,13 @@ if audio_data is not None:
                 st.write(f"Prediction: {predicted_label}")
                 st.write(f"Confidence: {confidence_score:.2f}")
 
-                # Optionally display the class probabilities
-                st.write("Class probabilities:")
-                for label, prob in zip(encoder.classes_, class_probabilities):
-                    st.write(f"{label}: {prob:.2f}")
+                # Plot the class probabilities
+                fig, ax = plt.subplots()
+                ax.bar(encoder.classes_, class_probabilities, color='blue')
+                ax.set_xlabel('Class')
+                ax.set_ylabel('Probability')
+                ax.set_title('Class Probabilities')
+                plt.xticks(rotation=45)
+                st.pyplot(fig)
             else:
                 st.error("Failed to process the audio.")
