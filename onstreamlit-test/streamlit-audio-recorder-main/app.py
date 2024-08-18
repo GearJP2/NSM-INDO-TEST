@@ -1,5 +1,4 @@
 import io
-import time
 import numpy as np
 import pandas as pd
 import librosa
@@ -13,7 +12,6 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import tempfile
 import os
-from streamlit_webrtc import webrtc_streamer, AudioProcessorBase, WebRtcMode
 
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
@@ -53,23 +51,22 @@ def extract_heart_sound(audio):
 
 def preprocess_audio(file, file_format):
     try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
+            temp_file.write(file.read())
+            temp_file.flush()
+            temp_file_path = temp_file.name
+
         if file_format == 'm4a':
             # Convert m4a to wav using pydub
-            audio = AudioSegment.from_file(file, format='m4a')
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-                audio.export(temp_file.name, format='wav')
-                temp_file_path = temp_file.name
+            audio = AudioSegment.from_file(temp_file_path, format='m4a')
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav_file:
+                audio.export(temp_wav_file.name, format='wav')
+                temp_wav_path = temp_wav_file.name
         else:
-            # Handle other formats
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
-                temp_file.write(file.read())
-                temp_file.flush()
-                temp_file_path = temp_file.name
-
-        st.write(f"Temp file path: {temp_file_path}")
+            temp_wav_path = temp_file_path
 
         # Load the audio file using librosa
-        y, sr = librosa.load(temp_file_path, sr=None)
+        y, sr = librosa.load(temp_wav_path, sr=None)
         st.write(f"Loaded audio shape: {y.shape}, Sample rate: {sr}")
 
         # Normalize the audio
@@ -105,9 +102,11 @@ def preprocess_audio(file, file_format):
         return None
 
     finally:
-        # Clean up the temporary file
+        # Clean up the temporary files
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
+        if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
+            os.remove(temp_wav_path)
 
 # Streamlit interface for recording and uploading audio files
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
