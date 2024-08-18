@@ -94,7 +94,6 @@ def preprocess_audio(file, file_format):
 
     except Exception as e:
         st.error(f"Error processing audio: {e}")
-        return None
 
     finally:
         # Clean up the temporary file
