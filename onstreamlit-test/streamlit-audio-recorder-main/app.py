@@ -90,13 +90,16 @@ def preprocess_audio(file, file_format):
         # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
 
+        return spectrogram
+
     except Exception as e:
         st.error(f"Error processing audio: {e}")
-        spectrogram = None
+        return None
 
-    # Clean up the temporary file
-    os.remove(temp_file_path)
-    return spectrogram
+    finally:
+        # Clean up the temporary file
+        os.remove(temp_file_path)
+
 
 # Streamlit interface for recording and uploading audio files
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
@@ -143,10 +146,17 @@ if audio_data is not None:
         progress_bar.progress(percent_complete + 1)
     progress_text.text("Recording complete. Click the button below to get the prediction.")
 
-    if st.button('Diagnose'):
-        with st.spinner('Uploading audio and getting prediction...'):
-            spectrogram = preprocess_audio(audio_data, file_format)
-            y_pred = model.predict(spectrogram)
-            y_pred_class = np.argmax(y_pred, axis=1)
-            result = encoder.inverse_transform(y_pred_class)
-            st.write(f"Prediction: {result[0]}")
+if st.button('Diagnose'):
+    with st.spinner('Uploading audio and getting prediction...'):
+        spectrogram = preprocess_audio(audio_data, file_format)
+        if spectrogram is not None:
+            try:
+                y_pred = model.predict(spectrogram)
+                y_pred_class = np.argmax(y_pred, axis=1)
+                result = encoder.inverse_transform(y_pred_class)
+                st.write(f"Prediction: {result[0]}")
+            except Exception as e:
+                st.error(f"Error making prediction: {e}")
+        else:
+            st.error("Failed to process audio for prediction.")
+
