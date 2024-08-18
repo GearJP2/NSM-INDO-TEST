@@ -1,5 +1,4 @@
 import io
-import time
 import numpy as np
 import pandas as pd
 import librosa
@@ -158,9 +157,22 @@ if audio_data is not None:
         with st.spinner('Uploading audio and getting prediction...'):
             spectrogram = preprocess_audio(audio_data, file_format)
             if spectrogram is not None:
+                # Get prediction probabilities
                 y_pred = model.predict(spectrogram)
                 y_pred_class = np.argmax(y_pred, axis=1)
                 result = encoder.inverse_transform(y_pred_class)
-                st.write(f"Prediction: {result[0]}")
+
+                # Display prediction and probability
+                class_probabilities = y_pred[0]
+                predicted_label = result[0]
+                confidence_score = np.max(class_probabilities)
+
+                st.write(f"Prediction: {predicted_label}")
+                st.write(f"Confidence: {confidence_score:.2f}")
+
+                # Optionally display the class probabilities
+                st.write("Class probabilities:")
+                for label, prob in zip(encoder.classes_, class_probabilities):
+                    st.write(f"{label}: {prob:.2f}")
             else:
                 st.error("Failed to process the audio.")
