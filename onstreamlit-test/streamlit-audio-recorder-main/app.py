@@ -14,6 +14,7 @@ from googleapiclient.http import MediaIoBaseDownload
 import tempfile
 import os
 from streamlit_webrtc import webrtc_streamer, AudioProcessorBase, WebRtcMode
+
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -51,10 +52,18 @@ def extract_heart_sound(audio):
     return heart_sound
 
 def preprocess_audio(file, file_format):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
-        temp_file.write(file.read())
-        temp_file.flush()
-        temp_file_path = temp_file.name
+    if file_format == 'm4a':
+        # Convert m4a to wav using pydub
+        audio = AudioSegment.from_file(file, format='m4a')
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+            audio.export(temp_file.name, format='wav')
+            temp_file_path = temp_file.name
+    else:
+        # Handle other formats
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
+            temp_file.write(file.read())
+            temp_file.flush()
+            temp_file_path = temp_file.name
 
     # Load the audio file using librosa
     y, sr = librosa.load(temp_file_path, sr=None)
