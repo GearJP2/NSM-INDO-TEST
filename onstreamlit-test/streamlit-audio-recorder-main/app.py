@@ -39,7 +39,7 @@ download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
 download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 
 # Load the pre-trained model
-model = tf.keras.models.load_model('MODEL_FILE_PATH', custom_objects=None, compile=True)
+model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=True)
 model.save('path_to_new_model')
 # Initialize the encoder
 encoder = LabelEncoder()
