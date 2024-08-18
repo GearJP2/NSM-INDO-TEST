@@ -157,6 +157,4 @@ if st.button('Diagnose'):
                 st.write(f"Prediction: {result[0]}")
             except Exception as e:
                 st.error(f"Error making prediction: {e}")
-        else:
-            st.error("Failed to process audio for prediction.")
 
