@@ -15,16 +15,11 @@ import os
 import time
 import matplotlib.pyplot as plt
 import h5py
-
-# Streamlit page configuration
-st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
-
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
 credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 drive_service = build('drive', 'v3', credentials=credentials)
-
 def download_file_from_google_drive(file_id, destination):
     request = drive_service.files().get_media(fileId=file_id)
     with io.FileIO(destination, 'wb') as fh:
@@ -33,7 +28,6 @@ def download_file_from_google_drive(file_id, destination):
         while not done:
             status, done = downloader.next_chunk()
             print(f"Download {int(status.progress() * 100)}%.")
-
 GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
 GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 MODEL_FILE_PATH = 'my_model.h5'
@@ -41,61 +35,51 @@ LABELS_FILE_PATH = 'labels.csv'
 download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
 download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 
-def load_model_with_retry():
-    global model
-    try:
-        model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
-        st.success("Model loaded successfully.")
-    except Exception as e:
-        st.error(f"Error loading model: {e}")
-        if st.button('Retry Loading Model'):
-            load_model_with_retry()
-
 # Load the pre-trained model
-load_model_with_retry()
+model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
 
 # Initialize the encoder
 encoder = LabelEncoder()
 labels = pd.read_csv(LABELS_FILE_PATH)
 encoder.fit(labels['label'])
-
 def extract_heart_sound(audio):
     fourier_transform = np.fft.fft(audio)
     heart_sound = np.abs(fourier_transform)
     return heart_sound
-
 def preprocess_audio(file, file_format):
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
             temp_file.write(file.read())
             temp_file.flush()
             temp_file_path = temp_file.name
-
         if file_format == 'm4a':
             # Convert m4a to wav using pydub
             audio = AudioSegment.from_file(temp_file_path, format='m4a')
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav_file:
                 audio.export(temp_wav_file.name, format='wav')
+
+    
+          
+            
+    
+
+          
+          Expand Down
+    
+    
+  
                 temp_wav_path = temp_wav_file.name
         else:
             temp_wav_path = temp_file_path
-
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
-        st.write(f"Loaded audio shape: {y.shape}, Sample rate: {sr}")
-
         # Normalize the audio
         audio = y / np.max(np.abs(y))
-        st.write(f"Normalized audio shape: {audio.shape}")
-
         # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
-
         # Generate the spectrogram
         spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
         spectrogram = librosa.power_to_db(spectrogram)
-        st.write(f"Spectrogram shape before padding/truncation: {spectrogram.shape}")
-
         # Define a fixed length for the spectrogram
         fixed_length = 1000  # Adjust this value as necessary
         # Pad or truncate the spectrogram to the fixed length
@@ -104,28 +88,20 @@ def preprocess_audio(file, file_format):
         else:
             padding = fixed_length - spectrogram.shape[1]
             spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
-
-        st.write(f"Spectrogram shape after padding/truncation: {spectrogram.shape}")
-
         # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
-
         return spectrogram
-
     except Exception as e:
         st.error(f"Error processing audio: {e}")
-        if st.button('Retry Processing Audio'):
-            st.experimental_rerun()  # Rerun the app to retry audio processing
         return None
-
     finally:
         # Clean up the temporary files
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
         if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
             os.remove(temp_wav_path)
-
 # Streamlit interface for recording and uploading audio files
+st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
 st.markdown('''
     <style>
         .css-1egvi7u {margin-top: -3rem;}
@@ -138,7 +114,6 @@ st.markdown('''
     </style>
 ''', unsafe_allow_html=True)
 st.markdown('<div class="header"><div class="title">Heart Sound Recorder</div></div>', unsafe_allow_html=True)
-
 recording_status = st.empty()
 if 'recording' not in st.session_state:
     st.session_state['recording'] = False
@@ -146,12 +121,10 @@ if st.session_state['recording']:
     recording_status.markdown('<div class="waveform">Recording...</div>', unsafe_allow_html=True)
 else:
     recording_status.markdown('<div class="waveform">Click to record</div>', unsafe_allow_html=True)
-
 wav_audio_data = st_audiorec()
 uploaded_file = st.file_uploader("Choose a file", type=['wav', 'mp3', 'm4a'])
 audio_data = None
 file_format = None
-
 if wav_audio_data is not None:
     audio_data = io.BytesIO(wav_audio_data)
     file_format = 'wav'
@@ -160,16 +133,10 @@ elif uploaded_file is not None:
     audio_data = uploaded_file
     file_format = uploaded_file.type.split('/')[1]
     st.audio(uploaded_file, format=f'audio/{file_format}')
-
 if audio_data is not None:
     progress_text = st.empty()
-    progress_bar = st.progress(0)
-    for percent_complete in range(100):
-        time.sleep(0.1)
-        progress_bar.progress(percent_complete + 1)
     progress_text.text("Recording complete. Click the button below to get the prediction.")
-
-    if st.button('Diagnose', key='diagnose_button'):
+    if st.button('Diagnose'):
         with st.spinner('Uploading audio and getting prediction...'):
             spectrogram = preprocess_audio(audio_data, file_format)
             if spectrogram is not None:
@@ -177,10 +144,8 @@ if audio_data is not None:
                 y_pred = model.predict(spectrogram)
                 class_probabilities = y_pred[0]
                 sorted_indices = np.argsort(-class_probabilities)  # Sorted indices of classes in descending order
-
                 predicted_label = encoder.inverse_transform([sorted_indices[0]])[0]
                 confidence_score = class_probabilities[sorted_indices[0]]
-
                 # Handle case where artifact is 100% confidence
                 if predicted_label == 'artifact' and confidence_score >= 0.70:
                     st.write("Artifact detected with high confidence. Please try recording again due to too many noises.")
@@ -190,10 +155,8 @@ if audio_data is not None:
                     if predicted_label == 'artifact':
                         predicted_label = encoder.inverse_transform([sorted_indices[1]])[0]
                         confidence_score = class_probabilities[sorted_indices[1]]
-
                     st.write(f"Prediction: {predicted_label}")
                     st.write(f"Confidence: {confidence_score:.2f}")
-
                     # Plot the class probabilities
                     fig, ax = plt.subplots()
                     ax.bar(encoder.classes_, class_probabilities, color='blue')
@@ -202,13 +165,9 @@ if audio_data is not None:
                     ax.set_title('Class Probabilities')
                     plt.xticks(rotation=45)
                     st.pyplot(fig)
-
                     # Show accuracy of all classes in a collapsible section
                     with st.expander("Show Class Accuracies"):
                         for i, label in enumerate(encoder.classes_):
                             st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
-
             else:
                 st.error("Failed to process the audio.")
-                if st.button('Retry Processing Audio', key='retry_processing_audio'):
-                    st.experimental_rerun()  # Rerun the app to retry audio processing
