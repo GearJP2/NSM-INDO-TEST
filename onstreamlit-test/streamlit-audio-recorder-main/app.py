@@ -149,7 +149,6 @@ elif uploaded_file is not None:
 
 if audio_data is not None:
     progress_text = st.empty()
-    progress_bar = st.progress(0)
     progress_text.text("Recording complete. Click the button below to get the prediction.")
 
     if st.button('Diagnose'):
