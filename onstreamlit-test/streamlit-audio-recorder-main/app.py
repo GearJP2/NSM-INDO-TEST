@@ -12,14 +12,15 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import tempfile
 import os
-import time
 import matplotlib.pyplot as plt
 import h5py
+
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
 credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 drive_service = build('drive', 'v3', credentials=credentials)
+
 def download_file_from_google_drive(file_id, destination):
     request = drive_service.files().get_media(fileId=file_id)
     with io.FileIO(destination, 'wb') as fh:
@@ -28,24 +29,39 @@ def download_file_from_google_drive(file_id, destination):
         while not done:
             status, done = downloader.next_chunk()
             print(f"Download {int(status.progress() * 100)}%.")
+
 GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
 GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 MODEL_FILE_PATH = 'my_model.h5'
 LABELS_FILE_PATH = 'labels.csv'
+
+# Attempt to download files
 download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
 download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 
+# Function to load the model with error handling
+def load_model():
+    try:
+        model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
+        return model
+    except Exception as e:
+        st.error(f"Error loading the model: {e}")
+        if st.button('Retry Loading Model'):
+            st.experimental_rerun()
+
 # Load the pre-trained model
-model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
+model = load_model()
 
 # Initialize the encoder
 encoder = LabelEncoder()
 labels = pd.read_csv(LABELS_FILE_PATH)
 encoder.fit(labels['label'])
+
 def extract_heart_sound(audio):
     fourier_transform = np.fft.fft(audio)
     heart_sound = np.abs(fourier_transform)
     return heart_sound
+
 def preprocess_audio(file, file_format):
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
@@ -89,6 +105,7 @@ def preprocess_audio(file, file_format):
             os.remove(temp_file_path)
         if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
             os.remove(temp_wav_path)
+
 # Streamlit interface for recording and uploading audio files
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
 st.markdown('''
@@ -103,6 +120,7 @@ st.markdown('''
     </style>
 ''', unsafe_allow_html=True)
 st.markdown('<div class="header"><div class="title">Heart Sound Recorder</div></div>', unsafe_allow_html=True)
+
 recording_status = st.empty()
 if 'recording' not in st.session_state:
     st.session_state['recording'] = False
@@ -110,10 +128,13 @@ if st.session_state['recording']:
     recording_status.markdown('<div class="waveform">Recording...</div>', unsafe_allow_html=True)
 else:
     recording_status.markdown('<div class="waveform">Click to record</div>', unsafe_allow_html=True)
+
 wav_audio_data = st_audiorec()
-uploaded_file = st.file_uploader("Choose a file", type=['wav', 'mp3', 'm4a'])
+uploaded_file = st.file_uploader("Choose a file (WAV only)", type=['wav'])
+
 audio_data = None
 file_format = None
+
 if wav_audio_data is not None:
     audio_data = io.BytesIO(wav_audio_data)
     file_format = 'wav'
@@ -122,6 +143,7 @@ elif uploaded_file is not None:
     audio_data = uploaded_file
     file_format = uploaded_file.type.split('/')[1]
     st.audio(uploaded_file, format=f'audio/{file_format}')
+
 if audio_data is not None:
     progress_text = st.empty()
     progress_text.text("Recording complete. Click the button below to get the prediction.")
