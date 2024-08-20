@@ -165,24 +165,33 @@ if audio_data is not None:
                 sorted_indices = np.argsort(-class_probabilities)  # Sorted indices of classes in descending order
 
                 predicted_label = encoder.inverse_transform([sorted_indices[0]])[0]
+                confidence_score = class_probabilities[sorted_indices[0]]
 
-                # If the top prediction is 'artifact', show the second-highest prediction
-                if predicted_label == 'artifact':
-                    predicted_label = encoder.inverse_transform([sorted_indices[1]])[0]
-                    confidence_score = class_probabilities[sorted_indices[1]]
+                # Handle case where artifact is 100% confidence
+                if predicted_label == 'artifact' and confidence_score >= 0.70:
+                    st.write("Artifact detected with high confidence. Please try recording again due to too many noises.")
+                    st.write(f"Prediction: artifact")
+                    st.write(f"Confidence: {confidence_score:.2f}")
                 else:
-                    confidence_score = class_probabilities[sorted_indices[0]]
+                    if predicted_label == 'artifact':
+                        predicted_label = encoder.inverse_transform([sorted_indices[1]])[0]
+                        confidence_score = class_probabilities[sorted_indices[1]]
 
-                st.write(f"Prediction: {predicted_label}")
-                st.write(f"Confidence: {confidence_score:.2f}")
+                    st.write(f"Prediction: {predicted_label}")
+                    st.write(f"Confidence: {confidence_score:.2f}")
 
-                # Plot the class probabilities
-                fig, ax = plt.subplots()
-                ax.bar(encoder.classes_, class_probabilities, color='blue')
-                ax.set_xlabel('Class')
-                ax.set_ylabel('Probability')
-                ax.set_title('Class Probabilities')
-                plt.xticks(rotation=45)
-                st.pyplot(fig)
+                    # Plot the class probabilities
+                    fig, ax = plt.subplots()
+                    ax.bar(encoder.classes_, class_probabilities, color='blue')
+                    ax.set_xlabel('Class')
+                    ax.set_ylabel('Probability')
+                    ax.set_title('Class Probabilities')
+                    plt.xticks(rotation=45)
+                    st.pyplot(fig)
+
+                    # Dropdown to show accuracy of other classes
+                    selected_class = st.selectbox('Select class to view its accuracy', options=encoder.classes_)
+                    selected_class_index = encoder.transform([selected_class])[0]
+                    st.write(f"Accuracy for class '{selected_class}': {class_probabilities[selected_class_index]:.2f}")
             else:
                 st.error("Failed to process the audio.")
