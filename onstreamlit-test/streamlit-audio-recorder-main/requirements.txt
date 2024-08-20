@@ -22,4 +22,4 @@ audioread>=2.1.9
 soundfile>=0.10.3
 ffmpeg>=1.4
 matplotlib==3.7.1
-h5py==3.9.0
+h5py>=3.10.0
