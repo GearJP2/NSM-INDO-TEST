@@ -180,12 +180,6 @@ if audio_data is not None:
                     st.write(f"Prediction: {predicted_label}")
                     st.write(f"Confidence: {confidence_score:.2f}")
 
-                    # Create a dropdown list to select a class and show its probability
-                    selected_label = st.selectbox("Select a class to view its probability:", encoder.classes_)
-                    selected_index = np.where(encoder.classes_ == selected_label)[0][0]
-                    st.write(f"Selected class: {selected_label}")
-                    st.write(f"Probability: {class_probabilities[selected_index]:.2f}")
-
                     # Plot the class probabilities
                     fig, ax = plt.subplots()
                     ax.bar(encoder.classes_, class_probabilities, color='blue')
