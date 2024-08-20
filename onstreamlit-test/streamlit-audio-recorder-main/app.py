@@ -39,7 +39,7 @@ download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
 download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 
 # Load the pre-trained model
-model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
+model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=True)
 
 # Initialize the encoder
 encoder = LabelEncoder()
@@ -180,6 +180,12 @@ if audio_data is not None:
                     st.write(f"Prediction: {predicted_label}")
                     st.write(f"Confidence: {confidence_score:.2f}")
 
+                    # Create a dropdown list to select a class and show its probability
+                    selected_label = st.selectbox("Select a class to view its probability:", encoder.classes_)
+                    selected_index = np.where(encoder.classes_ == selected_label)[0][0]
+                    st.write(f"Selected class: {selected_label}")
+                    st.write(f"Probability: {class_probabilities[selected_index]:.2f}")
+
                     # Plot the class probabilities
                     fig, ax = plt.subplots()
                     ax.bar(encoder.classes_, class_probabilities, color='blue')
@@ -189,10 +195,10 @@ if audio_data is not None:
                     plt.xticks(rotation=45)
                     st.pyplot(fig)
 
-                    # Show accuracy of all classes in a dropdown
-                    selected_class = st.selectbox('Select class to view its accuracy', options=encoder.classes_)
-                    selected_class_index = encoder.transform([selected_class])[0]
-                    st.write(f"Accuracy for class '{selected_class}': {class_probabilities[selected_class_index]:.2f}")
+                    # Show accuracy of all classes in a collapsible section
+                    with st.expander("Show Class Accuracies"):
+                        for i, label in enumerate(encoder.classes_):
+                            st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
 
             else:
                 st.error("Failed to process the audio.")
