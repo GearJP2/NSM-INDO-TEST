@@ -169,7 +169,7 @@ if audio_data is not None:
         progress_bar.progress(percent_complete + 1)
     progress_text.text("Recording complete. Click the button below to get the prediction.")
 
-    if st.button('Diagnose'):
+    if st.button('Diagnose', key='diagnose_button'):
         with st.spinner('Uploading audio and getting prediction...'):
             spectrogram = preprocess_audio(audio_data, file_format)
             if spectrogram is not None:
@@ -210,5 +210,5 @@ if audio_data is not None:
 
             else:
                 st.error("Failed to process the audio.")
-                if st.button('Retry Processing Audio'):
+                if st.button('Retry Processing Audio', key='retry_processing_audio'):
                     st.experimental_rerun()  # Rerun the app to retry audio processing
