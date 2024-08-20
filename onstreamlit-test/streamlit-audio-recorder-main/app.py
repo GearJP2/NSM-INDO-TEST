@@ -44,7 +44,7 @@ download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 def load_model_with_retry():
     global model
     try:
-        model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=True)
+        model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
         st.success("Model loaded successfully.")
     except Exception as e:
         st.error(f"Error loading model: {e}")
