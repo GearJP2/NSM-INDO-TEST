@@ -16,9 +16,6 @@ import time
 import matplotlib.pyplot as plt
 import h5py
 
-# Streamlit configuration
-st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
-
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -26,35 +23,30 @@ credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCO
 drive_service = build('drive', 'v3', credentials=credentials)
 
 def download_file_from_google_drive(file_id, destination):
-    try:
-        request = drive_service.files().get_media(fileId=file_id)
-        with io.FileIO(destination, 'wb') as fh:
-            downloader = MediaIoBaseDownload(fh, request)
-            done = False
-            while not done:
-                status, done = downloader.next_chunk()
-                print(f"Download {int(status.progress() * 100)}%.")
-    except Exception as e:
-        st.error(f"Error downloading file: {e}")
-
-def load_model_with_retry():
-    global model
-    try:
-        model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
-        st.success("Model loaded successfully.")
-    except Exception as e:
-        st.error(f"Error loading model: {e}")
-        if st.button('Retry Loading Model'):
-            load_model_with_retry()
+    request = drive_service.files().get_media(fileId=file_id)
+    with io.FileIO(destination, 'wb') as fh:
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            print(f"Download {int(status.progress() * 100)}%.")
 
 GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
 GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 MODEL_FILE_PATH = 'my_model.h5'
 LABELS_FILE_PATH = 'labels.csv'
-
-# Attempt to download files
 download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
 download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
+
+def load_model_with_retry():
+    global model
+    try:
+        model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=True)
+        st.success("Model loaded successfully.")
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        if st.button('Retry Loading Model'):
+            load_model_with_retry()
 
 # Load the pre-trained model
 load_model_with_retry()
@@ -119,6 +111,8 @@ def preprocess_audio(file, file_format):
 
     except Exception as e:
         st.error(f"Error processing audio: {e}")
+        if st.button('Retry Processing Audio'):
+            st.experimental_rerun()  # Rerun the app to retry audio processing
         return None
 
     finally:
@@ -129,6 +123,7 @@ def preprocess_audio(file, file_format):
             os.remove(temp_wav_path)
 
 # Streamlit interface for recording and uploading audio files
+st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
 st.markdown('''
     <style>
         .css-1egvi7u {margin-top: -3rem;}
@@ -182,35 +177,20 @@ if audio_data is not None:
                 sorted_indices = np.argsort(-class_probabilities)  # Sorted indices of classes in descending order
 
                 predicted_label = encoder.inverse_transform([sorted_indices[0]])[0]
+                confidence_score = class_probabilities[sorted_indices[0]]
 
-                # If the top prediction is 'artifact', show the second-highest prediction
-                if predicted_label == 'artifact':
-                    predicted_label = encoder.inverse_transform([sorted_indices[1]])[0]
-                    confidence_score = class_probabilities[sorted_indices[1]]
+                # Handle case where artifact is 100% confidence
+                if predicted_label == 'artifact' and confidence_score >= 0.70:
+                    st.write("Artifact detected with high confidence. Please try recording again due to too many noises.")
+                    st.write(f"Prediction: artifact")
+                    st.write(f"Confidence: {confidence_score:.2f}")
                 else:
-                    confidence_score = class_probabilities[sorted_indices[0]]
+                    if predicted_label == 'artifact':
+                        predicted_label = encoder.inverse_transform([sorted_indices[1]])[0]
+                        confidence_score = class_probabilities[sorted_indices[1]]
 
-                st.write(f"Prediction: {predicted_label}")
-                st.write(f"Confidence: {confidence_score:.2f}")
+                    st.write(f"Prediction: {predicted_label}")
+                    st.write(f"Confidence: {confidence_score:.2f}")
 
-                # Check for artifact condition
-                if class_probabilities[encoder.transform(['artifact'])[0]] > 0.7:
-                    st.warning("The prediction is 'artifact' with high confidence. Please try recording again due to possible noise.")
-
-                # Show class probabilities in a dropdown
-                if st.sidebar.checkbox('Show class probabilities'):
-                    st.sidebar.write("Class Probabilities:")
-                    for i, label in enumerate(encoder.classes_):
-                        if label != predicted_label:
-                            st.sidebar.write(f"{label}: {class_probabilities[i]:.2f}")
-
-                # Plot the class probabilities
-                fig, ax = plt.subplots()
-                ax.bar(encoder.classes_, class_probabilities, color='blue')
-                ax.set_xlabel('Class')
-                ax.set_ylabel('Probability')
-                ax.set_title('Class Probabilities')
-                plt.xticks(rotation=45)
-                st.pyplot(fig)
-            else:
-                st.error("Failed to process the audio.")
+                    # Plot the class probabilities
+                    fig, ax = plt
