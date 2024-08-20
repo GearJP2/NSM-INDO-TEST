@@ -16,6 +16,9 @@ import time
 import matplotlib.pyplot as plt
 import h5py
 
+# Streamlit page configuration
+st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
+
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -123,7 +126,6 @@ def preprocess_audio(file, file_format):
             os.remove(temp_wav_path)
 
 # Streamlit interface for recording and uploading audio files
-st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
 st.markdown('''
     <style>
         .css-1egvi7u {margin-top: -3rem;}
@@ -208,3 +210,5 @@ if audio_data is not None:
 
             else:
                 st.error("Failed to process the audio.")
+                if st.button('Retry Processing Audio'):
+                    st.experimental_rerun()  # Rerun the app to retry audio processing
