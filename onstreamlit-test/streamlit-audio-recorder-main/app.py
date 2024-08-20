@@ -39,7 +39,7 @@ download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
 download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 
 # Load the pre-trained model
-model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=True)
+model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
 
 # Initialize the encoder
 encoder = LabelEncoder()
@@ -189,9 +189,10 @@ if audio_data is not None:
                     plt.xticks(rotation=45)
                     st.pyplot(fig)
 
-                    # Dropdown to show accuracy of other classes
+                    # Show accuracy of all classes in a dropdown
                     selected_class = st.selectbox('Select class to view its accuracy', options=encoder.classes_)
                     selected_class_index = encoder.transform([selected_class])[0]
                     st.write(f"Accuracy for class '{selected_class}': {class_probabilities[selected_class_index]:.2f}")
+
             else:
                 st.error("Failed to process the audio.")
