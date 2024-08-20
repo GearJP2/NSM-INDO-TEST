@@ -44,15 +44,24 @@ download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 # Function to load the model with error handling
 def load_model():
     try:
-        model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
-        return model
+        if os.path.exists(MODEL_FILE_PATH):
+            model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
+            return model
+        else:
+            st.error(f"Model file not found at {MODEL_FILE_PATH}.")
+            return None
     except Exception as e:
         st.error(f"Error loading the model: {e}")
-        if st.button('Retry Loading Model'):
-            st.experimental_rerun()
+        return None
 
 # Load the pre-trained model
 model = load_model()
+
+if model is None:
+    st.error("Failed to load the model. Please ensure the model file exists and is correct.")
+    if st.button('Retry Loading Model'):
+        model = load_model()
+        st.experimental_rerun()
 
 # Initialize the encoder
 encoder = LabelEncoder()
