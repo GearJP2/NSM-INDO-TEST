@@ -23,23 +23,38 @@ credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCO
 drive_service = build('drive', 'v3', credentials=credentials)
 
 def download_file_from_google_drive(file_id, destination):
-    request = drive_service.files().get_media(fileId=file_id)
-    with io.FileIO(destination, 'wb') as fh:
-        downloader = MediaIoBaseDownload(fh, request)
-        done = False
-        while not done:
-            status, done = downloader.next_chunk()
-            print(f"Download {int(status.progress() * 100)}%.")
+    try:
+        request = drive_service.files().get_media(fileId=file_id)
+        with io.FileIO(destination, 'wb') as fh:
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while not done:
+                status, done = downloader.next_chunk()
+                print(f"Download {int(status.progress() * 100)}%.")
+    except Exception as e:
+        st.error(f"Error downloading file: {e}")
+
+def load_model_with_retry():
+    global model
+    try:
+        model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
+        st.success("Model loaded successfully.")
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        if st.button('Retry Loading Model'):
+            load_model_with_retry()
 
 GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
 GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 MODEL_FILE_PATH = 'my_model.h5'
 LABELS_FILE_PATH = 'labels.csv'
+
+# Attempt to download files
 download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
 download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 
 # Load the pre-trained model
-model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
+load_model_with_retry()
 
 # Initialize the encoder
 encoder = LabelEncoder()
@@ -69,9 +84,11 @@ def preprocess_audio(file, file_format):
 
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
+        st.write(f"Loaded audio shape: {y.shape}, Sample rate: {sr}")
 
         # Normalize the audio
         audio = y / np.max(np.abs(y))
+        st.write(f"Normalized audio shape: {audio.shape}")
 
         # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
@@ -79,6 +96,7 @@ def preprocess_audio(file, file_format):
         # Generate the spectrogram
         spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
         spectrogram = librosa.power_to_db(spectrogram)
+        st.write(f"Spectrogram shape before padding/truncation: {spectrogram.shape}")
 
         # Define a fixed length for the spectrogram
         fixed_length = 1000  # Adjust this value as necessary
@@ -88,6 +106,8 @@ def preprocess_audio(file, file_format):
         else:
             padding = fixed_length - spectrogram.shape[1]
             spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
+
+        st.write(f"Spectrogram shape after padding/truncation: {spectrogram.shape}")
 
         # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
@@ -144,6 +164,10 @@ elif uploaded_file is not None:
 
 if audio_data is not None:
     progress_text = st.empty()
+    progress_bar = st.progress(0)
+    for percent_complete in range(100):
+        time.sleep(0.1)
+        progress_bar.progress(percent_complete + 1)
     progress_text.text("Recording complete. Click the button below to get the prediction.")
 
     if st.button('Diagnose'):
@@ -156,34 +180,35 @@ if audio_data is not None:
                 sorted_indices = np.argsort(-class_probabilities)  # Sorted indices of classes in descending order
 
                 predicted_label = encoder.inverse_transform([sorted_indices[0]])[0]
-                confidence_score = class_probabilities[sorted_indices[0]]
 
-                # Handle case where artifact is 100% confidence
-                if predicted_label == 'artifact' and confidence_score >= 0.70:
-                    st.write("Artifact detected with high confidence. Please try recording again due to too many noises.")
-                    st.write(f"Prediction: artifact")
-                    st.write(f"Confidence: {confidence_score:.2f}")
+                # If the top prediction is 'artifact', show the second-highest prediction
+                if predicted_label == 'artifact':
+                    predicted_label = encoder.inverse_transform([sorted_indices[1]])[0]
+                    confidence_score = class_probabilities[sorted_indices[1]]
                 else:
-                    if predicted_label == 'artifact':
-                        predicted_label = encoder.inverse_transform([sorted_indices[1]])[0]
-                        confidence_score = class_probabilities[sorted_indices[1]]
+                    confidence_score = class_probabilities[sorted_indices[0]]
 
-                    st.write(f"Prediction: {predicted_label}")
-                    st.write(f"Confidence: {confidence_score:.2f}")
+                st.write(f"Prediction: {predicted_label}")
+                st.write(f"Confidence: {confidence_score:.2f}")
 
-                    # Plot the class probabilities
-                    fig, ax = plt.subplots()
-                    ax.bar(encoder.classes_, class_probabilities, color='blue')
-                    ax.set_xlabel('Class')
-                    ax.set_ylabel('Probability')
-                    ax.set_title('Class Probabilities')
-                    plt.xticks(rotation=45)
-                    st.pyplot(fig)
+                # Check for artifact condition
+                if class_probabilities[encoder.transform(['artifact'])[0]] > 0.7:
+                    st.warning("The prediction is 'artifact' with high confidence. Please try recording again due to possible noise.")
 
-                    # Show accuracy of all classes in a collapsible section
-                    with st.expander("Show Class Accuracies"):
-                        for i, label in enumerate(encoder.classes_):
-                            st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
+                # Show class probabilities in a dropdown
+                if st.sidebar.checkbox('Show class probabilities'):
+                    st.sidebar.write("Class Probabilities:")
+                    for i, label in enumerate(encoder.classes_):
+                        if label != predicted_label:
+                            st.sidebar.write(f"{label}: {class_probabilities[i]:.2f}")
 
+                # Plot the class probabilities
+                fig, ax = plt.subplots()
+                ax.bar(encoder.classes_, class_probabilities, color='blue')
+                ax.set_xlabel('Class')
+                ax.set_ylabel('Probability')
+                ax.set_title('Class Probabilities')
+                plt.xticks(rotation=45)
+                st.pyplot(fig)
             else:
                 st.error("Failed to process the audio.")
