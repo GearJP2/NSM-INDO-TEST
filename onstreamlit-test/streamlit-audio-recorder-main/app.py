@@ -57,17 +57,6 @@ def preprocess_audio(file, file_format):
             audio = AudioSegment.from_file(temp_file_path, format='m4a')
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav_file:
                 audio.export(temp_wav_file.name, format='wav')
-
-    
-          
-            
-    
-
-          
-          Expand Down
-    
-    
-  
                 temp_wav_path = temp_wav_file.name
         else:
             temp_wav_path = temp_file_path
