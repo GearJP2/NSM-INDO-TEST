@@ -170,29 +170,24 @@ if audio_data is not None:
                 predicted_label = result[0]
                 confidence_score = np.max(class_probabilities)
 
-                # Check if the predicted label is "artifact" with 100% confidence
-                if predicted_label == "artifact" and confidence_score == 1.0:
-                    st.write(f"Prediction: {predicted_label}")
-                    st.write(f"Confidence: {confidence_score:.2f}")
-                else:
-                    st.write(f"Prediction: {predicted_label}")
-                    st.write(f"Confidence: {confidence_score:.2f}")
+                st.write(f"Prediction: {predicted_label}")
+                st.write(f"Confidence: {confidence_score:.2f}")
 
-                    # Hide classes with low confidence
-                    filtered_probs = {encoder.classes_[i]: prob for i, prob in enumerate(class_probabilities) if encoder.classes_[i] != predicted_label}
+                # Hide classes with low confidence
+                filtered_probs = {encoder.classes_[i]: prob for i, prob in enumerate(class_probabilities) if encoder.classes_[i] != predicted_label}
 
-                    # Button to show/hide the other class probabilities
-                    show_probabilities = st.button("Show/Hide Other Class Probabilities")
+                # Button to show/hide the other class probabilities
+                show_probabilities = st.button("Show/Hide Other Class Probabilities")
 
-                    if show_probabilities:
-                        st.write("Other Class Probabilities:")
-                        fig, ax = plt.subplots()
-                        ax.bar(filtered_probs.keys(), filtered_probs.values(), color='blue')
-                        ax.set_xlabel('Class')
-                        ax.set_ylabel('Probability')
-                        ax.set_title('Class Probabilities')
-                        plt.xticks(rotation=45)
-                        st.pyplot(fig)
+                if show_probabilities:
+                    st.write("Other Class Probabilities:")
+                    fig, ax = plt.subplots()
+                    ax.bar(filtered_probs.keys(), filtered_probs.values(), color='blue')
+                    ax.set_xlabel('Class')
+                    ax.set_ylabel('Probability')
+                    ax.set_title('Class Probabilities')
+                    plt.xticks(rotation=45)
+                    st.pyplot(fig)
 
             else:
                 st.error("Failed to process the audio.")
