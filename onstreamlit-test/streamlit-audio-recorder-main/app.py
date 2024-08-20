@@ -44,24 +44,15 @@ download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 # Function to load the model with error handling
 def load_model():
     try:
-        if os.path.exists(MODEL_FILE_PATH):
-            model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
-            return model
-        else:
-            st.error(f"Model file not found at {MODEL_FILE_PATH}.")
-            return None
+        model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
+        return model
     except Exception as e:
         st.error(f"Error loading the model: {e}")
-        return None
+        if st.button('Retry Loading Model'):
+            st.experimental_rerun()
 
 # Load the pre-trained model
 model = load_model()
-
-if model is None:
-    st.error("Failed to load the model. Please ensure the model file exists and is correct.")
-    if st.button('Retry Loading Model'):
-        model = load_model()
-        st.experimental_rerun()
 
 # Initialize the encoder
 encoder = LabelEncoder()
@@ -79,16 +70,17 @@ def preprocess_audio(file, file_format):
             temp_file.write(file.read())
             temp_file.flush()
             temp_file_path = temp_file.name
-        
+
         # Convert audio to WAV format if necessary
-        audio = None
-        if file_format in ['mp3', 'm4a', 'x-m4a', 'ogg', 'flac', 'aac', 'wma']:
+        if file_format in ['m4a', 'x-m4a']:
             audio = AudioSegment.from_file(temp_file_path, format=file_format)
             temp_wav_path = temp_file_path.replace(f".{file_format}", ".wav")
             audio.export(temp_wav_path, format='wav')
-        else:
+        elif file_format == 'wav':
             temp_wav_path = temp_file_path
-        
+        else:
+            raise ValueError("Unsupported file format")
+
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
         # Normalize the audio
@@ -142,7 +134,7 @@ else:
     recording_status.markdown('<div class="waveform">Click to record</div>', unsafe_allow_html=True)
 
 wav_audio_data = st_audiorec()
-uploaded_file = st.file_uploader("Choose a file (WAV, MP3, M4A, FLAC, AAC, OGG, WMA)", type=['wav', 'mp3', 'm4a', 'x-m4a', 'flac', 'aac', 'ogg', 'wma'])
+uploaded_file = st.file_uploader("Choose a file (WAV, M4A, X-M4A)", type=['wav', 'm4a', 'x-m4a'])
 
 audio_data = None
 file_format = None
