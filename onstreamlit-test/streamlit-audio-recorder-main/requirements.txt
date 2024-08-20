@@ -21,7 +21,7 @@ pydrive2==1.14.0
 audioread>=2.1.9
 soundfile>=0.10.3
 ffmpeg>=1.4
-ffprobe==1.1.2
+ffprobe==0.5
 matplotlib==3.7.1
 h5py>=3.10.0
 imageio-ffmpeg==0.4.8
