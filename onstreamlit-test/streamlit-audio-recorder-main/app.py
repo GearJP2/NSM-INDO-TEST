@@ -193,4 +193,18 @@ if audio_data is not None:
                     st.write(f"Confidence: {confidence_score:.2f}")
 
                     # Plot the class probabilities
-                    fig, ax = plt
+                    fig, ax = plt.subplots()
+                    ax.bar(encoder.classes_, class_probabilities, color='blue')
+                    ax.set_xlabel('Class')
+                    ax.set_ylabel('Probability')
+                    ax.set_title('Class Probabilities')
+                    plt.xticks(rotation=45)
+                    st.pyplot(fig)
+
+                    # Show accuracy of all classes in a collapsible section
+                    with st.expander("Show Class Accuracies"):
+                        for i, label in enumerate(encoder.classes_):
+                            st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
+
+            else:
+                st.error("Failed to process the audio.")
