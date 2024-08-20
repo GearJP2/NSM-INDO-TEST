@@ -69,11 +69,9 @@ def preprocess_audio(file, file_format):
 
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
-        st.write(f"Loaded audio shape: {y.shape}, Sample rate: {sr}")
 
         # Normalize the audio
         audio = y / np.max(np.abs(y))
-        st.write(f"Normalized audio shape: {audio.shape}")
 
         # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
@@ -81,7 +79,6 @@ def preprocess_audio(file, file_format):
         # Generate the spectrogram
         spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
         spectrogram = librosa.power_to_db(spectrogram)
-        st.write(f"Spectrogram shape before padding/truncation: {spectrogram.shape}")
 
         # Define a fixed length for the spectrogram
         fixed_length = 1000  # Adjust this value as necessary
@@ -91,8 +88,6 @@ def preprocess_audio(file, file_format):
         else:
             padding = fixed_length - spectrogram.shape[1]
             spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
-
-        st.write(f"Spectrogram shape after padding/truncation: {spectrogram.shape}")
 
         # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
@@ -149,6 +144,10 @@ elif uploaded_file is not None:
 
 if audio_data is not None:
     progress_text = st.empty()
+    progress_bar = st.progress(0)
+    for percent_complete in range(100):
+        time.sleep(0.1)
+        progress_bar.progress(percent_complete + 1)
     progress_text.text("Recording complete. Click the button below to get the prediction.")
 
     if st.button('Diagnose'):
@@ -175,6 +174,12 @@ if audio_data is not None:
 
                     st.write(f"Prediction: {predicted_label}")
                     st.write(f"Confidence: {confidence_score:.2f}")
+
+                    # Create a dropdown list to select a class and show its probability
+                    selected_label = st.selectbox("Select a class to view its probability:", encoder.classes_)
+                    selected_index = np.where(encoder.classes_ == selected_label)[0][0]
+                    st.write(f"Selected class: {selected_label}")
+                    st.write(f"Probability: {class_probabilities[selected_index]:.2f}")
 
                     # Plot the class probabilities
                     fig, ax = plt.subplots()
