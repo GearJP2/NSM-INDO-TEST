@@ -44,16 +44,12 @@ def load_model():
         st.error(f"Error loading the model: {e}")
         if st.button('Retry Loading Model'):
             st.experimental_rerun()
-
 # Load the pre-trained model
 model = load_model()
-
 # Initialize the encoder
 encoder = LabelEncoder()
 labels = pd.read_csv(LABELS_FILE_PATH)
-def preprocess_audio(file, file_format):
-  
-    encoder.fit(labels['label'])
+encoder.fit(labels['label'])
 def extract_heart_sound(audio):
     fourier_transform = np.fft.fft(audio)
     heart_sound = np.abs(fourier_transform)
@@ -74,12 +70,25 @@ def preprocess_audio(file, file_format):
             temp_wav_path = temp_file_path
         else:
             raise ValueError("Unsupported file format")
-
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
         # Normalize the audio
 
-def preprocess_audio(file, file_format):
+    
+          
+            
+    
+
+          
+          Expand Down
+          
+            
+    
+
+          
+          Expand Up
+    
+    @@ -142,7 +134,7 @@ def preprocess_audio(file, file_format):
   
         audio = y / np.max(np.abs(y))
         # Extract heart sound using Fourier transform
@@ -98,15 +107,15 @@ def preprocess_audio(file, file_format):
         # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
         return spectrogram
-except Exception as e:
-    st.error(f"Error processing audio: {e}")
-    return None
-finally:
-    # Clean up the temporary files
-    if os.path.exists(temp_file_path):
-        os.remove(temp_file_path)
-    if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
-        os.remove(temp_wav_path)
+    except Exception as e:
+        st.error(f"Error processing audio: {e}")
+        return None
+    finally:
+        # Clean up the temporary files
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
+            os.remove(temp_wav_path)
 # Streamlit interface for recording and uploading audio files
 st.markdown('''
     <style>
@@ -127,7 +136,6 @@ if st.session_state['recording']:
     recording_status.markdown('<div class="waveform">Recording...</div>', unsafe_allow_html=True)
 else:
     recording_status.markdown('<div class="waveform">Click to record</div>', unsafe_allow_html=True)
-
 wav_audio_data = st_audiorec()
 uploaded_file = st.file_uploader("Choose a file (WAV, M4A, X-M4A)", type=['wav', 'm4a', 'x-m4a'])
 
@@ -142,6 +150,7 @@ elif uploaded_file is not None:
     audio_data = uploaded_file
     file_format = uploaded_file.type.split('/')[1]
     st.audio(uploaded_file, format=f'audio/{file_format}')
+
 if audio_data is not None:
     progress_text = st.empty()
     progress_text.text("Recording complete. Click the button below to get the prediction.")
