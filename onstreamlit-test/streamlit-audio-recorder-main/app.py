@@ -95,15 +95,15 @@ def preprocess_audio(file, file_format):
         # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
         return spectrogram
-    except Exception as e:
-        st.error(f"Error processing audio: {e}")
-        return None
-    finally:
-        # Clean up the temporary files
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-        if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
-            os.remove(temp_wav_path)
+        except Exception as e:
+            st.error(f"Error processing audio: {e}")
+            return None
+        finally:
+            # Clean up the temporary files
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+            if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
+                os.remove(temp_wav_path)
 # Streamlit interface for recording and uploading audio files
 st.markdown('''
     <style>
