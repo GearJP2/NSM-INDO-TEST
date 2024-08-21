@@ -13,7 +13,6 @@ from googleapiclient.http import MediaIoBaseDownload
 import tempfile
 import os
 import matplotlib.pyplot as plt
-import h5py
 
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
 
@@ -39,7 +38,8 @@ LABELS_FILE_PATH = 'onstreamlit-test/streamlit-audio-recorder-main/labels.csv'
 # Attempt to download files
 download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
 
-# Function to load the model with error handling
+# Function to load the model with caching
+@st.cache_resource
 def load_model():
     try:
         model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
