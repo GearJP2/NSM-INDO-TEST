@@ -44,8 +44,10 @@ def load_model():
         st.error(f"Error loading the model: {e}")
         if st.button('Retry Loading Model'):
             st.experimental_rerun()
+
 # Load the pre-trained model
 model = load_model()
+
 # Initialize the encoder
 encoder = LabelEncoder()
 labels = pd.read_csv(LABELS_FILE_PATH)
@@ -70,25 +72,11 @@ def preprocess_audio(file, file_format):
             temp_wav_path = temp_file_path
         else:
             raise ValueError("Unsupported file format")
+
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
         # Normalize the audio
-
-    
-          
-            
-    
-
-          
-          Expand Down
-          
-            
-    
-
-          
-          Expand Up
-    
-    @@ -142,7 +134,7 @@ def preprocess_audio(file, file_format):
+def preprocess_audio(file, file_format):
   
         audio = y / np.max(np.abs(y))
         # Extract heart sound using Fourier transform
@@ -136,11 +124,13 @@ if st.session_state['recording']:
     recording_status.markdown('<div class="waveform">Recording...</div>', unsafe_allow_html=True)
 else:
     recording_status.markdown('<div class="waveform">Click to record</div>', unsafe_allow_html=True)
+
 wav_audio_data = st_audiorec()
 uploaded_file = st.file_uploader("Choose a file (WAV, M4A, X-M4A)", type=['wav', 'm4a', 'x-m4a'])
 
 audio_data = None
 file_format = None
+
 
 if wav_audio_data is not None:
     audio_data = io.BytesIO(wav_audio_data)
@@ -150,7 +140,6 @@ elif uploaded_file is not None:
     audio_data = uploaded_file
     file_format = uploaded_file.type.split('/')[1]
     st.audio(uploaded_file, format=f'audio/{file_format}')
-
 if audio_data is not None:
     progress_text = st.empty()
     progress_text.text("Recording complete. Click the button below to get the prediction.")
