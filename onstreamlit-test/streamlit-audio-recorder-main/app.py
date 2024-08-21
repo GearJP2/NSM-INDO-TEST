@@ -65,7 +65,7 @@ def extract_heart_sound(audio):
     heart_sound = np.abs(fourier_transform)
     return heart_sound
 
-# Bandpass filter
+# Bandpass filter to isolate heart sounds
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyquist = 0.5 * fs
     low = lowcut / nyquist
@@ -97,6 +97,10 @@ def preprocess_audio(file, file_format):
 
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
+
+        # Ensure the audio buffer is finite
+        if not np.all(np.isfinite(y)):
+            raise ValueError("Audio buffer contains non-finite values")
 
         # Apply bandpass filter to isolate heart sounds
         lowcut = 20.0  # Lower frequency bound for heart sounds
