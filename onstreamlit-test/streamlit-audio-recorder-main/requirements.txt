@@ -25,3 +25,4 @@ ffprobe==0.5
 matplotlib==3.7.1
 h5py>=3.10.0
 imageio-ffmpeg==0.4.8
+scipy==1.9.3
