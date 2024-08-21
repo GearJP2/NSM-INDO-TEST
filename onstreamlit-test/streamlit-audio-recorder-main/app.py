@@ -13,21 +13,13 @@ from googleapiclient.http import MediaIoBaseDownload
 import tempfile
 import os
 import matplotlib.pyplot as plt
-from scipy.signal import butter, lfilter
 import h5py
-
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
-
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
 credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 drive_service = build('drive', 'v3', credentials=credentials)
-GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
-GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
-MODEL_FILE_PATH = 'my_model.h5'
-LABELS_FILE_PATH = 'labels.csv'
-
 def download_file_from_google_drive(file_id, destination):
     request = drive_service.files().get_media(fileId=file_id)
     with io.FileIO(destination, 'wb') as fh:
@@ -36,29 +28,22 @@ def download_file_from_google_drive(file_id, destination):
         while not done:
             status, done = downloader.next_chunk()
             print(f"Download {int(status.progress() * 100)}%.")
-
+GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
+GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
+MODEL_FILE_PATH = 'my_model.h5'
+LABELS_FILE_PATH = 'labels.csv'
+# Attempt to download files
+download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
+download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
+# Function to load the model with error handling
 def load_model():
     try:
-        # Check if the model file exists and is accessible
-        if not os.path.exists(MODEL_FILE_PATH):
-            st.error("Model file not found, attempting to redownload...")
-            download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
-
-        # Try to load the model
         model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
         return model
-
     except Exception as e:
         st.error(f"Error loading the model: {e}")
         if st.button('Retry Loading Model'):
-            st.session_state['retry'] = True
-            st.experimental_set_query_params(**st.session_state)
-            st.stop()
-
-# Add this line at the start of your script or in the relevant section
-if 'retry' in st.session_state:
-    st.experimental_set_query_params(**st.session_state)
-    st.session_state.pop('retry')
+            st.experimental_rerun()
 
 # Load the pre-trained model
 model = load_model()
@@ -66,26 +51,13 @@ model = load_model()
 # Initialize the encoder
 encoder = LabelEncoder()
 labels = pd.read_csv(LABELS_FILE_PATH)
+def preprocess_audio(file, file_format):
+  
 encoder.fit(labels['label'])
-
 def extract_heart_sound(audio):
     fourier_transform = np.fft.fft(audio)
     heart_sound = np.abs(fourier_transform)
     return heart_sound
-
-# Bandpass filter
-def butter_bandpass(lowcut, highcut, fs, order=5):
-    nyquist = 0.5 * fs
-    low = lowcut / nyquist
-    high = highcut / nyquist
-    b, a = butter(order, [low, high], btype='band')
-    return b, a
-
-def bandpass_filter(data, lowcut, highcut, fs, order=5):
-    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
-    y = lfilter(b, a, data)
-    return y
-
 def preprocess_audio(file, file_format):
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
@@ -105,51 +77,36 @@ def preprocess_audio(file, file_format):
 
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
+        # Normalize the audio
 
-        # Apply bandpass filter to isolate heart sounds
-        lowcut = 20.0  # Lower frequency bound for heart sounds
-        highcut = 150.0  # Upper frequency bound for heart sounds
-        y_filtered = bandpass_filter(y, lowcut, highcut, sr)
-
-        # Normalize the filtered audio
-        audio = y_filtered / np.max(np.abs(y_filtered))
-
-        # Check for finite values after filtering and normalization
-        if not np.all(np.isfinite(audio)):
-            raise ValueError("Audio buffer is not finite everywhere after filtering")
-
+def preprocess_audio(file, file_format):
+  
+        audio = y / np.max(np.abs(y))
         # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
-
         # Generate the spectrogram
         spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
         spectrogram = librosa.power_to_db(spectrogram)
-
         # Define a fixed length for the spectrogram
         fixed_length = 1000  # Adjust this value as necessary
-
         # Pad or truncate the spectrogram to the fixed length
         if spectrogram.shape[1] > fixed_length:
             spectrogram = spectrogram[:, :fixed_length]
         else:
             padding = fixed_length - spectrogram.shape[1]
             spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
-
         # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
         return spectrogram
-
     except Exception as e:
         st.error(f"Error processing audio: {e}")
         return None
-
     finally:
         # Clean up the temporary files
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
         if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
             os.remove(temp_wav_path)
-
 # Streamlit interface for recording and uploading audio files
 st.markdown('''
     <style>
@@ -163,7 +120,6 @@ st.markdown('''
     </style>
 ''', unsafe_allow_html=True)
 st.markdown('<div class="header"><div class="title">Heart Sound Recorder</div></div>', unsafe_allow_html=True)
-
 recording_status = st.empty()
 if 'recording' not in st.session_state:
     st.session_state['recording'] = False
@@ -186,7 +142,6 @@ elif uploaded_file is not None:
     audio_data = uploaded_file
     file_format = uploaded_file.type.split('/')[1]
     st.audio(uploaded_file, format=f'audio/{file_format}')
-
 if audio_data is not None:
     progress_text = st.empty()
     progress_text.text("Recording complete. Click the button below to get the prediction.")
@@ -219,5 +174,9 @@ if audio_data is not None:
                     ax.set_title('Class Probabilities')
                     plt.xticks(rotation=45)
                     st.pyplot(fig)
+                    # Show accuracy of all classes in a collapsible section
+                    with st.expander("Show Class Accuracies"):
+                        for i, label in enumerate(encoder.classes_):
+                            st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
             else:
-                st.write("Error: Unable to preprocess the audio file. Please try again.")
+                st.error("Failed to process the audio.")
