@@ -14,12 +14,15 @@ import tempfile
 import os
 import matplotlib.pyplot as plt
 import h5py
+
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
+
 # Google Drive setup
 SERVICE_ACCOUNT_FILE = 'onstreamlit-test/streamlit-audio-recorder-main/heart-d9410-9a288317e3c7.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
 credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 drive_service = build('drive', 'v3', credentials=credentials)
+
 def download_file_from_google_drive(file_id, destination):
     request = drive_service.files().get_media(fileId=file_id)
     with io.FileIO(destination, 'wb') as fh:
@@ -28,14 +31,20 @@ def download_file_from_google_drive(file_id, destination):
         while not done:
             status, done = downloader.next_chunk()
             print(f"Download {int(status.progress() * 100)}%.")
-GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
 
+GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
 MODEL_FILE_PATH = 'my_model.h5'
 LABELS_FILE_PATH = 'onstreamlit-test/streamlit-audio-recorder-main/labels.csv'
+
 # Attempt to download files
 download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
+
 # Function to load the model with error handling
 def load_model():
+    if not os.path.exists(MODEL_FILE_PATH):
+        st.error(f"Model file not found at {MODEL_FILE_PATH}")
+        return None
+
     try:
         model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
         return model
@@ -43,18 +52,25 @@ def load_model():
         st.error(f"Error loading the model: {e}")
         if st.button('Retry Loading Model'):
             st.experimental_rerun()
+        return None
 
 # Load the pre-trained model
 model = load_model()
 
 # Initialize the encoder
 encoder = LabelEncoder()
-labels = pd.read_csv(LABELS_FILE_PATH)
-encoder.fit(labels['label'])
+try:
+    labels = pd.read_csv(LABELS_FILE_PATH)
+    encoder.fit(labels['label'])
+except pd.errors.EmptyDataError:
+    st.error("The labels file is empty or not properly formatted.")
+    labels = pd.DataFrame({'label': []})
+
 def extract_heart_sound(audio):
     fourier_transform = np.fft.fft(audio)
     heart_sound = np.abs(fourier_transform)
     return heart_sound
+
 def preprocess_audio(file, file_format):
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
@@ -70,7 +86,8 @@ def preprocess_audio(file, file_format):
         elif file_format == 'wav':
             temp_wav_path = temp_file_path
         else:
-            raise ValueError("Unsupported file format")
+            st.error("Unsupported file format")
+            return None
 
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
@@ -97,11 +114,14 @@ def preprocess_audio(file, file_format):
         return None
     finally:
         # Clean up the temporary files
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-        if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
-            os.remove(temp_wav_path)
-                
+        try:
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+            if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
+                os.remove(temp_wav_path)
+        except Exception as e:
+            st.warning(f"Error cleaning up temporary files: {e}")
+
 # Streamlit interface for recording and uploading audio files
 st.markdown('''
     <style>
@@ -115,6 +135,7 @@ st.markdown('''
     </style>
 ''', unsafe_allow_html=True)
 st.markdown('<div class="header"><div class="title">Heart Sound Recorder</div></div>', unsafe_allow_html=True)
+
 recording_status = st.empty()
 if 'recording' not in st.session_state:
     st.session_state['recording'] = False
@@ -129,7 +150,6 @@ uploaded_file = st.file_uploader("Choose a file (WAV, M4A, X-M4A)", type=['wav',
 audio_data = None
 file_format = None
 
-
 if wav_audio_data is not None:
     audio_data = io.BytesIO(wav_audio_data)
     file_format = 'wav'
@@ -138,41 +158,45 @@ elif uploaded_file is not None:
     audio_data = uploaded_file
     file_format = uploaded_file.type.split('/')[1]
     st.audio(uploaded_file, format=f'audio/{file_format}')
+
 if audio_data is not None:
     progress_text = st.empty()
     progress_text.text("Recording complete. Click the button below to get the prediction.")
     if st.button('Diagnose'):
-        with st.spinner('Uploading audio and getting prediction...'):
-            spectrogram = preprocess_audio(audio_data, file_format)
-            if spectrogram is not None:
-                # Get prediction probabilities
-                y_pred = model.predict(spectrogram)
-                class_probabilities = y_pred[0]
-                sorted_indices = np.argsort(-class_probabilities)  # Sorted indices of classes in descending order
-                predicted_label = encoder.inverse_transform([sorted_indices[0]])[0]
-                confidence_score = class_probabilities[sorted_indices[0]]
-                # Handle case where artifact is 100% confidence
-                if predicted_label == 'artifact' and confidence_score >= 0.70:
-                    st.write("Artifact detected with high confidence. Please try recording again due to too many noises.")
-                    st.write(f"Prediction: artifact")
-                    st.write(f"Confidence: {confidence_score:.2f}")
+        if model is None:
+            st.error("Model failed to load. Please try again.")
+        else:
+            with st.spinner('Uploading audio and getting prediction...'):
+                spectrogram = preprocess_audio(audio_data, file_format)
+                if spectrogram is not None:
+                    # Get prediction probabilities
+                    y_pred = model.predict(spectrogram)
+                    class_probabilities = y_pred[0]
+                    sorted_indices = np.argsort(-class_probabilities)  # Sorted indices of classes in descending order
+                    predicted_label = encoder.inverse_transform([sorted_indices[0]])[0]
+                    confidence_score = class_probabilities[sorted_indices[0]]
+                    # Handle case where artifact is 100% confidence
+                    if predicted_label == 'artifact' and confidence_score >= 0.70:
+                        st.write("Artifact detected with high confidence. Please try recording again due to too many noises.")
+                        st.write(f"Prediction: artifact")
+                        st.write(f"Confidence: {confidence_score:.2f}")
+                    else:
+                        if predicted_label == 'artifact':
+                            predicted_label = encoder.inverse_transform([sorted_indices[1]])[0]
+                            confidence_score = class_probabilities[sorted_indices[1]]
+                        st.write(f"Prediction: {predicted_label}")
+                        st.write(f"Confidence: {confidence_score:.2f}")
+                        # Plot the class probabilities
+                        fig, ax = plt.subplots()
+                        ax.bar(encoder.classes_, class_probabilities, color='blue')
+                        ax.set_xlabel('Class')
+                        ax.set_ylabel('Probability')
+                        ax.set_title('Class Probabilities')
+                        plt.xticks(rotation=45)
+                        st.pyplot(fig)
+                        # Show accuracy of all classes in a collapsible section
+                        with st.expander("Show Class Accuracies"):
+                            for i, label in enumerate(encoder.classes_):
+                                st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
                 else:
-                    if predicted_label == 'artifact':
-                        predicted_label = encoder.inverse_transform([sorted_indices[1]])[0]
-                        confidence_score = class_probabilities[sorted_indices[1]]
-                    st.write(f"Prediction: {predicted_label}")
-                    st.write(f"Confidence: {confidence_score:.2f}")
-                    # Plot the class probabilities
-                    fig, ax = plt.subplots()
-                    ax.bar(encoder.classes_, class_probabilities, color='blue')
-                    ax.set_xlabel('Class')
-                    ax.set_ylabel('Probability')
-                    ax.set_title('Class Probabilities')
-                    plt.xticks(rotation=45)
-                    st.pyplot(fig)
-                    # Show accuracy of all classes in a collapsible section
-                    with st.expander("Show Class Accuracies"):
-                        for i, label in enumerate(encoder.classes_):
-                            st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
-            else:
-                st.error("Failed to process the audio.")
+                    st.error("Failed to process the audio.")
