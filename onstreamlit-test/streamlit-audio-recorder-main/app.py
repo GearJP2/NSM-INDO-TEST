@@ -53,7 +53,7 @@ encoder = LabelEncoder()
 labels = pd.read_csv(LABELS_FILE_PATH)
 def preprocess_audio(file, file_format):
   
-encoder.fit(labels['label'])
+    encoder.fit(labels['label'])
 def extract_heart_sound(audio):
     fourier_transform = np.fft.fft(audio)
     heart_sound = np.abs(fourier_transform)
