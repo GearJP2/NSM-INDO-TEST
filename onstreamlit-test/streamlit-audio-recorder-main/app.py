@@ -13,6 +13,7 @@ from googleapiclient.http import MediaIoBaseDownload
 import tempfile
 import os
 import matplotlib.pyplot as plt
+from scipy.signal import butter, lfilter
 import h5py
 
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
@@ -64,6 +65,19 @@ def extract_heart_sound(audio):
     heart_sound = np.abs(fourier_transform)
     return heart_sound
 
+# Bandpass filter
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    nyquist = 0.5 * fs
+    low = lowcut / nyquist
+    high = highcut / nyquist
+    b, a = butter(order, [low, high], btype='band')
+    return b, a
+
+def bandpass_filter(data, lowcut, highcut, fs, order=5):
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
 def preprocess_audio(file, file_format):
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
@@ -83,27 +97,40 @@ def preprocess_audio(file, file_format):
 
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
-        # Normalize the audio
-        audio = y / np.max(np.abs(y))
+
+        # Apply bandpass filter to isolate heart sounds
+        lowcut = 20.0  # Lower frequency bound for heart sounds
+        highcut = 150.0  # Upper frequency bound for heart sounds
+        y_filtered = bandpass_filter(y, lowcut, highcut, sr)
+
+        # Normalize the filtered audio
+        audio = y_filtered / np.max(np.abs(y_filtered))
+
         # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
+
         # Generate the spectrogram
         spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
         spectrogram = librosa.power_to_db(spectrogram)
+
         # Define a fixed length for the spectrogram
         fixed_length = 1000  # Adjust this value as necessary
+
         # Pad or truncate the spectrogram to the fixed length
         if spectrogram.shape[1] > fixed_length:
             spectrogram = spectrogram[:, :fixed_length]
         else:
             padding = fixed_length - spectrogram.shape[1]
             spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
+
         # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
         return spectrogram
+
     except Exception as e:
         st.error(f"Error processing audio: {e}")
         return None
+
     finally:
         # Clean up the temporary files
         if os.path.exists(temp_file_path):
@@ -180,9 +207,3 @@ if audio_data is not None:
                     ax.set_title('Class Probabilities')
                     plt.xticks(rotation=45)
                     st.pyplot(fig)
-                    # Show accuracy of all classes in a collapsible section
-                    with st.expander("Show Class Accuracies"):
-                        for i, label in enumerate(encoder.classes_):
-                            st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
-            else:
-                st.error("Failed to process the audio.")
