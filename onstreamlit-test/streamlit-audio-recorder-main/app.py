@@ -114,9 +114,9 @@ def preprocess_audio(file, file_format):
         # Normalize the filtered audio
         audio = y_filtered / np.max(np.abs(y_filtered))
 
-        # Check for finite values
+        # Check for finite values after filtering and normalization
         if not np.all(np.isfinite(audio)):
-            raise ValueError("Audio buffer is not finite everywhere")
+            raise ValueError("Audio buffer is not finite everywhere after filtering")
 
         # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
