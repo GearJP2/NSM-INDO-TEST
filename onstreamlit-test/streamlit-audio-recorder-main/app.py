@@ -13,6 +13,7 @@ from googleapiclient.http import MediaIoBaseDownload
 import tempfile
 import os
 import matplotlib.pyplot as plt
+import h5py
 
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
 
@@ -45,14 +46,24 @@ def load_model():
         return model
     except Exception as e:
         st.error(f"Error loading the model: {e}")
-        return None
+        if st.button('Retry Loading Model'):
+            st.warning("Please reload the page to try loading the model again.")
+            return None
 
 # Load the pre-trained model
 model = load_model()
 
-if model is None:
-    if st.button('Retry Loading Model'):
-        st.experimental_rerun()
+# Check if the model was successfully loaded
+if model is not None:
+    # Initialize the encoder
+    encoder = LabelEncoder()
+    labels = pd.read_csv(LABELS_FILE_PATH)
+    encoder.fit(labels['label'])
+
+    # Rest of your code to process audio and make predictions
+
+else:
+    st.error("Model could not be loaded. Please check the model file or try reloading the page.")
 
 # Initialize the encoder
 encoder = LabelEncoder()
