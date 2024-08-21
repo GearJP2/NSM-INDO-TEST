@@ -33,20 +33,17 @@ def download_file_from_google_drive(file_id, destination):
             status, done = downloader.next_chunk()
             print(f"Download {int(status.progress() * 100)}%.")
 
-GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
-GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
-MODEL_FILE_PATH = 'my_model.h5'
-LABELS_FILE_PATH = 'labels.csv'
-
-# Attempt to download files
-download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
-download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
-
-# Function to load the model with error handling
 def load_model():
     try:
+        # Check if the model file exists and is accessible
+        if not os.path.exists(MODEL_FILE_PATH):
+            st.error("Model file not found, attempting to redownload...")
+            download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
+
+        # Try to load the model
         model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
         return model
+
     except Exception as e:
         st.error(f"Error loading the model: {e}")
         if st.button('Retry Loading Model'):
@@ -210,5 +207,13 @@ if audio_data is not None:
                         confidence_score = class_probabilities[sorted_indices[1]]
                     st.write(f"Prediction: {predicted_label}")
                     st.write(f"Confidence: {confidence_score:.2f}")
+                    # Plot the class probabilities
+                    fig, ax = plt.subplots()
+                    ax.bar(encoder.classes_, class_probabilities, color='blue')
+                    ax.set_xlabel('Class')
+                    ax.set_ylabel('Probability')
+                    ax.set_title('Class Probabilities')
+                    plt.xticks(rotation=45)
+                    st.pyplot(fig)
             else:
                 st.write("Error: Unable to preprocess the audio file. Please try again.")
