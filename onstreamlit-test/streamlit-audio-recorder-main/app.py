@@ -38,19 +38,21 @@ LABELS_FILE_PATH = 'onstreamlit-test/streamlit-audio-recorder-main/labels.csv'
 # Attempt to download files
 download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
 
-# Function to load the model with caching
-@st.cache_resource
+# Function to load the model with error handling
 def load_model():
     try:
         model = tf.keras.models.load_model(MODEL_FILE_PATH, custom_objects=None, compile=False)
         return model
     except Exception as e:
         st.error(f"Error loading the model: {e}")
-        if st.button('Retry Loading Model'):
-            st.experimental_rerun()
+        return None
 
 # Load the pre-trained model
 model = load_model()
+
+if model is None:
+    if st.button('Retry Loading Model'):
+        st.experimental_rerun()
 
 # Initialize the encoder
 encoder = LabelEncoder()
@@ -176,11 +178,3 @@ if audio_data is not None:
                     ax.set_xlabel('Class')
                     ax.set_ylabel('Probability')
                     ax.set_title('Class Probabilities')
-                    plt.xticks(rotation=45)
-                    st.pyplot(fig)
-                    # Show accuracy of all classes in a collapsible section
-                    with st.expander("Show Class Accuracies"):
-                        for i, label in enumerate(encoder.classes_):
-                            st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
-            else:
-                st.error("Failed to process the audio.")
