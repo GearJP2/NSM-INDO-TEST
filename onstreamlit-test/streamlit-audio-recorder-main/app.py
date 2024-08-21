@@ -51,11 +51,17 @@ def load_model():
     except Exception as e:
         st.error(f"Error loading the model: {e}")
         if st.button('Retry Loading Model'):
-            st.experimental_rerun()
+            st.session_state.retry_loading_model = True  # Set a flag to retry
+            st.experimental_rerun()  # Reload the app
         return None
 
-# Load the pre-trained model
-model = load_model()
+# Handle retry loading model
+if st.session_state.get('retry_loading_model'):
+    model = load_model()
+    st.session_state.retry_loading_model = False  # Reset the flag
+else:
+    # Load the pre-trained model
+    model = load_model()
 
 # Initialize the encoder
 encoder = LabelEncoder()
