@@ -33,11 +33,13 @@ def download_file_from_google_drive(file_id, destination):
             print(f"Download {int(status.progress() * 100)}%.")
 
 GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
+GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 MODEL_FILE_PATH = 'my_model.h5'
-LABELS_FILE_PATH = 'onstreamlit-test/streamlit-audio-recorder-main/labels.csv'
+LABELS_FILE_PATH = 'labels.csv'
 
 # Attempt to download files
 download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
+download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 
 # Function to load the model with error handling
 def load_model():
@@ -48,7 +50,6 @@ def load_model():
         st.error(f"Error loading the model: {e}")
         if st.button('Retry Loading Model'):
             st.experimental_rerun()
-        return None
 
 # Load the pre-trained model
 model = load_model()
@@ -75,40 +76,20 @@ def preprocess_audio(file, file_format):
             audio = AudioSegment.from_file(temp_file_path, format=file_format)
             temp_wav_path = temp_file_path.replace(f".{file_format}", ".wav")
             audio.export(temp_wav_path, format='wav')
-            if os.path.getsize(temp_wav_path) == 0:
-                st.error("Audio conversion failed, resulting in an empty file. Please try again.")
-                return None
         elif file_format == 'wav':
             temp_wav_path = temp_file_path
         else:
-            st.error("Unsupported file format")
-            return None
+            raise ValueError("Unsupported file format")
 
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
-        if y.size == 0:
-            st.error("The audio file appears to be empty or corrupted. Please try again with a different file.")
-            return None
-
         # Normalize the audio
-        audio = y / np.max(np.abs(y)) if np.max(np.abs(y)) > 0 else y
-        if audio.size == 0:
-            st.error("Audio processing failed. The audio data is empty.")
-            return None
-
+        audio = y / np.max(np.abs(y))
         # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
-        if heart_sound.size == 0:
-            st.error("Failed to extract heart sound from the audio.")
-            return None
-
         # Generate the spectrogram
         spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
-        if spectrogram.size == 0:
-            st.error("Failed to generate a valid spectrogram from the audio data.")
-            return None
         spectrogram = librosa.power_to_db(spectrogram)
-
         # Define a fixed length for the spectrogram
         fixed_length = 1000  # Adjust this value as necessary
         # Pad or truncate the spectrogram to the fixed length
@@ -117,11 +98,9 @@ def preprocess_audio(file, file_format):
         else:
             padding = fixed_length - spectrogram.shape[1]
             spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
-
         # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
         return spectrogram
-
     except Exception as e:
         st.error(f"Error processing audio: {e}")
         return None
@@ -205,5 +184,5 @@ if audio_data is not None:
                     with st.expander("Show Class Accuracies"):
                         for i, label in enumerate(encoder.classes_):
                             st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
-
-                # Optionally, you could save the audio file or results here for later use
+            else:
+                st.error("Failed to process the audio.")
