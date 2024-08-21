@@ -50,7 +50,14 @@ def load_model():
     except Exception as e:
         st.error(f"Error loading the model: {e}")
         if st.button('Retry Loading Model'):
-            st.experimental_rerun()
+            st.session_state['retry'] = True
+            st.experimental_set_query_params(**st.session_state)
+            st.stop()
+
+# Add this line at the start of your script or in the relevant section
+if 'retry' in st.session_state:
+    st.experimental_set_query_params(**st.session_state)
+    st.session_state.pop('retry')
 
 # Load the pre-trained model
 model = load_model()
@@ -65,7 +72,7 @@ def extract_heart_sound(audio):
     heart_sound = np.abs(fourier_transform)
     return heart_sound
 
-# Bandpass filter to isolate heart sounds
+# Bandpass filter
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyquist = 0.5 * fs
     low = lowcut / nyquist
@@ -98,10 +105,6 @@ def preprocess_audio(file, file_format):
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
 
-        # Ensure the audio buffer is finite
-        if not np.all(np.isfinite(y)):
-            raise ValueError("Audio buffer contains non-finite values")
-
         # Apply bandpass filter to isolate heart sounds
         lowcut = 20.0  # Lower frequency bound for heart sounds
         highcut = 150.0  # Upper frequency bound for heart sounds
@@ -109,6 +112,10 @@ def preprocess_audio(file, file_format):
 
         # Normalize the filtered audio
         audio = y_filtered / np.max(np.abs(y_filtered))
+
+        # Check for finite values
+        if not np.all(np.isfinite(audio)):
+            raise ValueError("Audio buffer is not finite everywhere")
 
         # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
@@ -203,11 +210,5 @@ if audio_data is not None:
                         confidence_score = class_probabilities[sorted_indices[1]]
                     st.write(f"Prediction: {predicted_label}")
                     st.write(f"Confidence: {confidence_score:.2f}")
-                    # Plot the class probabilities
-                    fig, ax = plt.subplots()
-                    ax.bar(encoder.classes_, class_probabilities, color='blue')
-                    ax.set_xlabel('Class')
-                    ax.set_ylabel('Probability')
-                    ax.set_title('Class Probabilities')
-                    plt.xticks(rotation=45)
-                    st.pyplot(fig)
+            else:
+                st.write("Error: Unable to preprocess the audio file. Please try again.")
