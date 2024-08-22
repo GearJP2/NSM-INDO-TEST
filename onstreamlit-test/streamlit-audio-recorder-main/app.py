@@ -33,11 +33,13 @@ def download_file_from_google_drive(file_id, destination):
             print(f"Download {int(status.progress() * 100)}%.")
 
 GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
+GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 MODEL_FILE_PATH = 'my_model.h5'
-LABELS_FILE_PATH = 'onstreamlit-test/streamlit-audio-recorder-main/labels.csv'
+LABELS_FILE_PATH = 'labels.csv'
 
 # Attempt to download files
 download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
+download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 
 # Function to load the model with error handling
 def load_model():
@@ -47,46 +49,37 @@ def load_model():
     except Exception as e:
         st.error(f"Error loading the model: {e}")
         if st.button('Retry Loading Model'):
-            st.warning("Please reload the page to try loading the model again.")
-            return None
+            st.experimental_rerun()
 
 # Load the pre-trained model
 model = load_model()
 
-# Check if the model was successfully loaded
-if model is not None:
-    # Initialize the encoder
-    encoder = LabelEncoder()
-    labels = pd.read_csv(LABELS_FILE_PATH)
-    encoder.fit(labels['label'])
+# Initialize the encoder
+encoder = LabelEncoder()
+labels = pd.read_csv(LABELS_FILE_PATH)
+encoder.fit(labels['label'])
 
-else:
-    st.error("Model could not be loaded. Please check the model file or try reloading the page.")
-
-# Function to extract heart sound using Fourier transform
 def extract_heart_sound(audio):
     fourier_transform = np.fft.fft(audio)
     heart_sound = np.abs(fourier_transform)
     return heart_sound
 
-# Function to preprocess audio file
 def preprocess_audio(file, file_format):
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
             temp_file.write(file.read())
             temp_file.flush()
             temp_file_path = temp_file.name
-
+        
         # Convert audio to WAV format if necessary
-        if file_format in ['m4a', 'x-m4a']:
+        audio = None
+        if file_format in ['mp3', 'm4a', 'x-m4a', 'ogg', 'flac', 'aac', 'wma']:
             audio = AudioSegment.from_file(temp_file_path, format=file_format)
             temp_wav_path = temp_file_path.replace(f".{file_format}", ".wav")
             audio.export(temp_wav_path, format='wav')
-        elif file_format == 'wav':
-            temp_wav_path = temp_file_path
         else:
-            raise ValueError("Unsupported file format")
-
+            temp_wav_path = temp_file_path
+        
         # Load the audio file using librosa
         y, sr = librosa.load(temp_wav_path, sr=None)
         # Normalize the audio
@@ -140,7 +133,7 @@ else:
     recording_status.markdown('<div class="waveform">Click to record</div>', unsafe_allow_html=True)
 
 wav_audio_data = st_audiorec()
-uploaded_file = st.file_uploader("Choose a file (WAV, M4A, X-M4A)", type=['wav', 'm4a', 'x-m4a'])
+uploaded_file = st.file_uploader("Choose a file (WAV, MP3, M4A, FLAC, AAC, OGG, WMA)", type=['wav', 'mp3', 'm4a', 'x-m4a', 'flac', 'aac', 'ogg', 'wma'])
 
 audio_data = None
 file_format = None
@@ -150,14 +143,8 @@ if wav_audio_data is not None:
     file_format = 'wav'
     st.audio(wav_audio_data, format='audio/wav')
 elif uploaded_file is not None:
-    # Handle possible edge cases with file types
-    if uploaded_file.type == 'audio/wav':
-        file_format = 'wav'
-    elif uploaded_file.type in ['audio/m4a', 'audio/x-m4a']:
-        file_format = 'm4a'
-    else:
-        file_format = uploaded_file.type.split('/')[1].lower()  # Default handling
     audio_data = uploaded_file
+    file_format = uploaded_file.type.split('/')[1]
     st.audio(uploaded_file, format=f'audio/{file_format}')
 
 if audio_data is not None:
@@ -190,4 +177,11 @@ if audio_data is not None:
                     ax.set_xlabel('Class')
                     ax.set_ylabel('Probability')
                     ax.set_title('Class Probabilities')
+                    plt.xticks(rotation=45)
                     st.pyplot(fig)
+                    # Show accuracy of all classes in a collapsible section
+                    with st.expander("Show Class Accuracies"):
+                        for i, label in enumerate(encoder.classes_):
+                            st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
+            else:
+                st.error("Failed to process the audio.")
