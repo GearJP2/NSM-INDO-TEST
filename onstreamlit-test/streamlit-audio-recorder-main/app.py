@@ -33,13 +33,11 @@ def download_file_from_google_drive(file_id, destination):
             print(f"Download {int(status.progress() * 100)}%.")
 
 GOOGLE_DRIVE_MODEL_FILE_ID = '1A2VnaPoLY3i_LakU1Y_9hB2bWuncK37X'
-GOOGLE_DRIVE_LABELS_FILE_ID = '1zIMcBrAi4uiL4zOVU7K2tvbw8Opcf5cW'
 MODEL_FILE_PATH = 'my_model.h5'
-LABELS_FILE_PATH = 'labels.csv'
+LABELS_FILE_PATH = 'onstreamlit-test/streamlit-audio-recorder-main/labels.csv'
 
 # Attempt to download files
 download_file_from_google_drive(GOOGLE_DRIVE_MODEL_FILE_ID, MODEL_FILE_PATH)
-download_file_from_google_drive(GOOGLE_DRIVE_LABELS_FILE_ID, LABELS_FILE_PATH)
 
 # Function to load the model with error handling
 def load_model():
