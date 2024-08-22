@@ -60,21 +60,16 @@ if model is not None:
     labels = pd.read_csv(LABELS_FILE_PATH)
     encoder.fit(labels['label'])
 
-    # Rest of your code to process audio and make predictions
-
 else:
     st.error("Model could not be loaded. Please check the model file or try reloading the page.")
 
-# Initialize the encoder
-encoder = LabelEncoder()
-labels = pd.read_csv(LABELS_FILE_PATH)
-encoder.fit(labels['label'])
-
+# Function to extract heart sound using Fourier transform
 def extract_heart_sound(audio):
     fourier_transform = np.fft.fft(audio)
     heart_sound = np.abs(fourier_transform)
     return heart_sound
 
+# Function to preprocess audio file
 def preprocess_audio(file, file_format):
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
@@ -156,7 +151,7 @@ if wav_audio_data is not None:
     st.audio(wav_audio_data, format='audio/wav')
 elif uploaded_file is not None:
     audio_data = uploaded_file
-    file_format = uploaded_file.type.split('/')[1]
+    file_format = uploaded_file.type.split('/')[1].lower()  # Get the format from MIME type
     st.audio(uploaded_file, format=f'audio/{file_format}')
 
 if audio_data is not None:
@@ -189,3 +184,4 @@ if audio_data is not None:
                     ax.set_xlabel('Class')
                     ax.set_ylabel('Probability')
                     ax.set_title('Class Probabilities')
+                    st.pyplot(fig)
