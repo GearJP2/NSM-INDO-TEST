@@ -82,7 +82,7 @@ def preprocess_audio(file, file_format):
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
             temp_file.write(file.read())
             temp_file.flush()
-            temp_file_path = 'onstreamlit-test/streamlit-audio-recorder-main/temp.wav'
+            temp_file_path = temp_file.name
 
         # Convert audio to WAV format if necessary
         if file_format in ['m4a', 'x-m4a']:
