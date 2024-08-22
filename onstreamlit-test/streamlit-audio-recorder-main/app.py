@@ -76,7 +76,7 @@ def preprocess_audio(file, file_format):
             with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
                 temp_file.write(file.read())
                 temp_file.flush()
-                temp_file_path = temp_file.name
+                temp_file_path = temp_file.recorded_audio
             audio = AudioSegment.from_file(temp_file_path, format=file_format)
             temp_wav_path = temp_file_path.replace(f".{file_format}", ".wav")
             audio.export(temp_wav_path, format='wav')
