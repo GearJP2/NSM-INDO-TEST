@@ -63,45 +63,50 @@ def extract_heart_sound(audio):
     return heart_sound
 
 def preprocess_audio(file, file_format):
-    temp_file_path = None
     try:
-        if file_format == 'wav':
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-                temp_file.write(file.read())
-                temp_file.flush()
-                temp_file_path = 'onstreamlit-test/streamlit-audio-recorder-main/temp.wav'
-        elif file_format in ['m4a', 'x-m4a']:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
-                temp_file.write(file.read())
-                temp_file.flush()
-                temp_file_path = temp_file.name
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".wav") as temp_file:
+            temp_file.write(file.read())
+            temp_file.flush()
+            temp_file_path = 'onstreamlit-test/streamlit-audio-recorder-main/temp.wav'
+
+        if file_format in ['m4a', 'x-m4a']:
+            # Convert M4A or X-M4A to WAV format
             audio = AudioSegment.from_file(temp_file_path, format=file_format)
             temp_wav_path = temp_file_path.replace(f".{file_format}", ".wav")
             audio.export(temp_wav_path, format='wav')
             temp_file_path = temp_wav_path
-        else:
+        elif file_format != 'wav':
             raise ValueError("Unsupported file format")
 
         # Load the audio file using librosa
         y, sr = librosa.load(temp_file_path, sr=None)
+        # Normalize the audio
         audio = y / np.max(np.abs(y))
+        # Extract heart sound using Fourier transform
         heart_sound = extract_heart_sound(audio)
+        # Generate the spectrogram
         spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr)
         spectrogram = librosa.power_to_db(spectrogram)
-        fixed_length = 1000
+        # Define a fixed length for the spectrogram
+        fixed_length = 1000  # Adjust this value as necessary
+        # Pad or truncate the spectrogram to the fixed length
         if spectrogram.shape[1] > fixed_length:
             spectrogram = spectrogram[:, :fixed_length]
         else:
             padding = fixed_length - spectrogram.shape[1]
             spectrogram = np.pad(spectrogram, ((0, 0), (0, padding)), 'constant')
+        # Reshape the spectrogram to fit the model
         spectrogram = spectrogram.reshape((1, 128, 1000, 1))
         return spectrogram
     except Exception as e:
         st.error(f"Error processing audio: {e}")
         return None
     finally:
-        if temp_file_path and os.path.exists(temp_file_path):
+        # Clean up the temporary files
+        if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
+
 
 # Streamlit interface for recording and uploading audio files
 st.markdown('''
@@ -136,7 +141,7 @@ if wav_audio_data is not None:
     file_format = 'wav'
     st.audio(wav_audio_data, format='audio/wav')
 elif uploaded_file is not None:
-    audio_data = uploaded_file.read()
+    audio_data = uploaded_file
     file_format = uploaded_file.type.split('/')[1]
     st.audio(uploaded_file, format=f'audio/{file_format}')
 
@@ -145,13 +150,15 @@ if audio_data is not None:
     progress_text.text("Recording complete. Click the button below to get the prediction.")
     if st.button('Diagnose'):
         with st.spinner('Uploading audio and getting prediction...'):
-            spectrogram = preprocess_audio(io.BytesIO(audio_data), file_format)
+            spectrogram = preprocess_audio(audio_data, file_format)
             if spectrogram is not None:
+                # Get prediction probabilities
                 y_pred = model.predict(spectrogram)
                 class_probabilities = y_pred[0]
-                sorted_indices = np.argsort(-class_probabilities)
+                sorted_indices = np.argsort(-class_probabilities)  # Sorted indices of classes in descending order
                 predicted_label = encoder.inverse_transform([sorted_indices[0]])[0]
                 confidence_score = class_probabilities[sorted_indices[0]]
+                # Handle case where artifact is 100% confidence
                 if predicted_label == 'artifact' and confidence_score >= 0.70:
                     st.write("Artifact detected with high confidence. Please try recording again due to too many noises.")
                     st.write(f"Prediction: artifact")
@@ -162,6 +169,7 @@ if audio_data is not None:
                         confidence_score = class_probabilities[sorted_indices[1]]
                     st.write(f"Prediction: {predicted_label}")
                     st.write(f"Confidence: {confidence_score:.2f}")
+                    # Plot the class probabilities
                     fig, ax = plt.subplots()
                     ax.bar(encoder.classes_, class_probabilities, color='blue')
                     ax.set_xlabel('Class')
@@ -169,6 +177,7 @@ if audio_data is not None:
                     ax.set_title('Class Probabilities')
                     plt.xticks(rotation=45)
                     st.pyplot(fig)
+                    # Show accuracy of all classes in a collapsible section
                     with st.expander("Show Class Accuracies"):
                         for i, label in enumerate(encoder.classes_):
                             st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
