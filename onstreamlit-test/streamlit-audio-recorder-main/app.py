@@ -63,8 +63,8 @@ def extract_heart_sound(audio):
     return heart_sound
 
 def preprocess_audio(file, file_format):
+    temp_file_path = None
     try:
-        # Create a temporary file
         if file_format == 'wav':
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
                 temp_file.write(file.read())
@@ -100,7 +100,7 @@ def preprocess_audio(file, file_format):
         st.error(f"Error processing audio: {e}")
         return None
     finally:
-        if os.path.exists(temp_file_path):
+        if temp_file_path and os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
 # Streamlit interface for recording and uploading audio files
