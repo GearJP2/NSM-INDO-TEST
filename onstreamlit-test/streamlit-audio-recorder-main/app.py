@@ -150,8 +150,14 @@ if wav_audio_data is not None:
     file_format = 'wav'
     st.audio(wav_audio_data, format='audio/wav')
 elif uploaded_file is not None:
+    # Handle possible edge cases with file types
+    if uploaded_file.type == 'audio/wav':
+        file_format = 'wav'
+    elif uploaded_file.type in ['audio/m4a', 'audio/x-m4a']:
+        file_format = 'm4a'
+    else:
+        file_format = uploaded_file.type.split('/')[1].lower()  # Default handling
     audio_data = uploaded_file
-    file_format = uploaded_file.type.split('/')[1].lower()  # Get the format from MIME type
     st.audio(uploaded_file, format=f'audio/{file_format}')
 
 if audio_data is not None:
