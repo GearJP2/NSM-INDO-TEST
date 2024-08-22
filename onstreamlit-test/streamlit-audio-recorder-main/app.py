@@ -64,38 +64,28 @@ def extract_heart_sound(audio):
 
 def preprocess_audio(file, file_format):
     try:
-        # Ensure the file format is correct, even if the browser mislabels it
-        if file_format in ['octet-stream', 'x-m4a', 'mpeg']:
-            # Check the file header to determine the actual format
-            file.seek(0)  # Ensure we're at the start of the file
-            header = file.read(10)
-            file.seek(0)  # Reset to the start of the file after reading the header
-            
-            if header.startswith(b'RIFF'):
-                file_format = 'wav'
-            elif header.startswith(b'M4A ') or header[4:8] == b'ftyp':
-                file_format = 'm4a'
-            else:
-                raise ValueError("Unsupported file format")
-
-        # Write the uploaded file to a temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
-            temp_file.write(file.read())
-            temp_file.flush()
-            temp_file_path = temp_file.name
-
-        # Convert audio to WAV format if necessary
-        if file_format in ['m4a', 'x-m4a']:
+        # Check for supported file formats
+        if file_format == 'wav':
+            # Write the uploaded file to a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+                temp_file.write(file.read())
+                temp_file.flush()
+                temp_file_path = temp_file.name
+        elif file_format in ['m4a', 'x-m4a']:
+            # Convert M4A or X-M4A to WAV format
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
+                temp_file.write(file.read())
+                temp_file.flush()
+                temp_file_path = temp_file.name
             audio = AudioSegment.from_file(temp_file_path, format=file_format)
             temp_wav_path = temp_file_path.replace(f".{file_format}", ".wav")
             audio.export(temp_wav_path, format='wav')
-        elif file_format == 'wav':
-            temp_wav_path = temp_file_path
+            temp_file_path = temp_wav_path
         else:
             raise ValueError("Unsupported file format")
 
         # Load the audio file using librosa
-        y, sr = librosa.load(temp_wav_path, sr=None)
+        y, sr = librosa.load(temp_file_path, sr=None)
         # Normalize the audio
         audio = y / np.max(np.abs(y))
         # Extract heart sound using Fourier transform
@@ -121,8 +111,6 @@ def preprocess_audio(file, file_format):
         # Clean up the temporary files
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
-        if 'temp_wav_path' in locals() and os.path.exists(temp_wav_path):
-            os.remove(temp_wav_path)
 
 # Streamlit interface for recording and uploading audio files
 st.markdown('''
@@ -197,3 +185,5 @@ if audio_data is not None:
                     with st.expander("Show Class Accuracies"):
                         for i, label in enumerate(encoder.classes_):
                             st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
+            else:
+                st.error("Failed to process the audio.")
