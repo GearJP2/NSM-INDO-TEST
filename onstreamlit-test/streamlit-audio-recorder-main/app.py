@@ -64,7 +64,6 @@ def extract_heart_sound(audio):
 
 def preprocess_audio(file, file_format):
     try:
-        st.write(f"Detected file format: {file_format}")
         # Create a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
             temp_file.write(file.read())
@@ -143,7 +142,7 @@ if wav_audio_data is not None:
     audio_data = io.BytesIO(wav_audio_data)
     file_format = 'wav'
     st.audio(wav_audio_data, format='audio/wav')
-if uploaded_file is not None:
+elif uploaded_file is not None:
     file_extension = uploaded_file.name.split('.')[-1].lower()
     file_format = file_extension if file_extension in ['wav', 'm4a', 'x-m4a'] else None
     st.write(f"File extension detected: {file_extension}")
