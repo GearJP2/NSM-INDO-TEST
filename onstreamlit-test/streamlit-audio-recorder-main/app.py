@@ -13,7 +13,6 @@ from googleapiclient.http import MediaIoBaseDownload
 import tempfile
 import os
 import matplotlib.pyplot as plt
-import h5py
 
 st.set_page_config(page_title="Heart Sound Recorder", page_icon="🎙️")
 
