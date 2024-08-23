@@ -64,21 +64,6 @@ def extract_heart_sound(audio):
 
 def preprocess_audio(file, file_format):
     try:
-        # Ensure the file format is correct, even if the browser mislabels it
-        if file_format in ['octet-stream', 'x-m4a', 'mpeg']:
-            # Check the file header to determine the actual format
-            file.seek(0)  # Ensure we're at the start of the file
-            header = file.read(10)
-            file.seek(0)  # Reset to the start of the file after reading the header
-            
-            if header.startswith(b'RIFF'):
-                file_format = 'wav'
-            elif header.startswith(b'M4A ') or header[4:8] == b'ftyp':
-                file_format = 'm4a'
-            else:
-                raise ValueError("Unsupported file format")
-
-        # Write the uploaded file to a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_format}") as temp_file:
             temp_file.write(file.read())
             temp_file.flush()
@@ -197,3 +182,5 @@ if audio_data is not None:
                     with st.expander("Show Class Accuracies"):
                         for i, label in enumerate(encoder.classes_):
                             st.write(f"Accuracy for class '{label}': {class_probabilities[i]:.2f}")
+            else:
+                st.error("Failed to process the audio.")
